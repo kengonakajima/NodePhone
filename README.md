@@ -21,6 +21,8 @@ node sv.js
 
 macos install:
 
+Tested on node v16.13.0 and macos 12.3.1, using homebrew
+
 ```
 arch -x86_64 zsh
 npm i node-record-lpcm16
