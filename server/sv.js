@@ -15,7 +15,10 @@ function othercast(sender,data) {
     if(g_clients[i]!=sender) g_clients[i].send(data);
   }
 }
+let g_idgen=0;
 wsv.on('connection', function connection(ws) {
+  g_idgen++;
+  ws.id=g_idgen;
   g_clients.push(ws);
   console.log("connection: clients:",g_clients.length);
   ws.on('close', ()=>{
@@ -31,9 +34,9 @@ wsv.on('connection', function connection(ws) {
     console.log('received: %s',tks);
     const cmd=tks[0];
     if(cmd=="othercast") {
-      othercast(ws,data);
+      othercast(ws,ws.id+" "+s);
     } else if(cmd=="echoback") {
-      ws.send(data);
+      ws.send(ws.id+" "+s);
     }
   });
   ws.send('something');
