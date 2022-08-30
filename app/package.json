@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "node-record-lpcm16": "^1.0.1",
+    "speaker": "^0.5.4"
+  }
+}
