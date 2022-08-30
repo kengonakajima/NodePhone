@@ -13,6 +13,6 @@ cl.on('message', function message(data) {
 let g_counter=0;
 
 setInterval(function(){
-  cl.send("broadcast "+process.pid+" "+g_counter);
+  cl.send("othercast "+process.pid+" "+g_counter);
   g_counter++;
 },25); 

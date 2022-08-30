@@ -30,9 +30,11 @@ wsv.on('connection', function connection(ws) {
     const tks=s.split(" ");
     console.log('received: %s',tks);
     const cmd=tks[0];
-    if(cmd=="broadcast") {
+    if(cmd=="othercast") {
       othercast(ws,data);
-    }    
+    } else if(cmd=="echoback") {
+      ws.send(data);
+    }
   });
   ws.send('something');
 });
