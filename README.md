@@ -31,8 +31,11 @@ macos install:
 
 Tested on node v16.13.0 and macos 12.3.1, using homebrew
 
+
+
 ```
 arch -x86_64 zsh
+brew install sox
 npm i node-record-lpcm16
 npm i speaker  # this need x86_64
 ```
