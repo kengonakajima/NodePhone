@@ -33,9 +33,9 @@ wsv.on('connection', function connection(co) {
     const tks=s.split(" ");
     console.log('received: %s',tks);
     const cmd=tks[0];
-    if(cmd=="othercast") {
+    if(cmd=="othercast" || cmd=="o") {
       othercast(co,co.id+" "+s);
-    } else if(cmd=="echoback") {
+    } else if(cmd=="echoback" || cmd=="e") {
       co.send(co.id+" "+s);
     }
   });
