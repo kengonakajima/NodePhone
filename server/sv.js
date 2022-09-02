@@ -5,9 +5,9 @@
 
 */
 
-const WS=require("ws");
+const ws=require("ws");
 
-const wsv = new WS.WebSocketServer({ port: 13478 });
+const wsv = new ws.WebSocketServer({ port: 13478 });
 
 const g_clients=[];
 function othercast(sender,data) {
@@ -16,29 +16,29 @@ function othercast(sender,data) {
   }
 }
 let g_idgen=0;
-wsv.on('connection', function connection(ws) {
+wsv.on('connection', function connection(co) {
   g_idgen++;
-  ws.id=g_idgen;
-  g_clients.push(ws);
+  co.id=g_idgen;
+  g_clients.push(co);
   console.log("connection: clients:",g_clients.length);
-  ws.on('close', ()=>{
-    const ind=g_clients.indexOf(ws);
+  co.on('close', ()=>{
+    const ind=g_clients.indexOf(co);
     if(ind>=0) {
       g_clients.splice(ind,1);
       console.log("removed. clients:",g_clients.length);
     }
   });
-  ws.on('message',(data)=>{
+  co.on('message',(data)=>{
     const s=data.toString();
     const tks=s.split(" ");
     console.log('received: %s',tks);
     const cmd=tks[0];
     if(cmd=="othercast") {
-      othercast(ws,ws.id+" "+s);
+      othercast(co,co.id+" "+s);
     } else if(cmd=="echoback") {
-      ws.send(ws.id+" "+s);
+      co.send(co.id+" "+s);
     }
   });
-  ws.send('something');
+  co.send('something');
 });
 

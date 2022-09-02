@@ -1,11 +1,11 @@
-const WS=require("ws");
+const ws=require("ws");
 
 const dest_host=process.argv[2];
 if(!dest_host) {
   console.log("need ip address of server");
   process.exit(1);
 }
-const cl = new WS.WebSocket(`ws://${dest_host}:13478/`);
+const cl = new ws.WebSocket(`ws://${dest_host}:13478/`);
 
 cl.on('open', function open() {
   cl.send('something');
