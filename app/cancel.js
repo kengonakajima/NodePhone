@@ -8,35 +8,39 @@ const aec3 = require('./aec3.js');
 
 let aec3Wrapper={ initialized: false};
 aec3.onRuntimeInitialized = () => {
+  aec3Wrapper.workmem=aec3._malloc(2*AEC3_SAMPLES_PER_FRAME);
   aec3Wrapper.init=aec3.cwrap("aec3_init","void",["number","number"]);
   aec3Wrapper.debug_print=aec3.cwrap("aec3_debug_print","void",[]);
   aec3Wrapper.get_metrics_echo_return_loss_enhancement=aec3.cwrap("aec3_get_metrics_echo_return_loss_enhancement","number",[]);
   aec3Wrapper.get_metrics_delay_ms=aec3.cwrap("aec3_get_metrics_delay_ms","number",[]);
   aec3Wrapper.update_ref_frame=aec3.cwrap("aec3_update_ref_frame","void",["number","number"]);  
   aec3Wrapper.update_ref_frame_wrapped = function(i16ary) {
-    const num=i16ary.length;
-    const ptr=aec3._malloc(Int16Array.BYTES_PER_ELEMENT*num);
-    if(ptr==null) throw new "_malloc fail";
-    aec3.HEAP16.set(i16ary, ptr/Int16Array.BYTES_PER_ELEMENT);
-    this.update_ref_frame(ptr,num);
+    if(!this.initialized) {
+      console.log("aec3 not init");
+      return;
+    }
+    aec3.HEAP16.set(i16ary, this.workmem/Int16Array.BYTES_PER_ELEMENT);
+    this.update_ref_frame(this.workmem,AEC3_SAMPLES_PER_FRAME);
   }
   aec3Wrapper.update_rec_frame=aec3.cwrap("aec3_update_rec_frame","void",["number","number"]);  
   aec3Wrapper.update_rec_frame_wrapped = function(i16ary) {
-    const num=i16ary.length;
-    const ptr=aec3._malloc(2*num);
-    if(ptr==null) throw new "_malloc fail";
-    aec3.HEAP16.set(i16ary, ptr/2);
-    this.update_rec_frame(ptr,num);
+    if(!this.initialized) {
+      console.log("aec3 not init");
+      return;
+    }    
+    aec3.HEAP16.set(i16ary, this.workmem/2);
+    this.update_rec_frame(this.workmem,AEC3_SAMPLES_PER_FRAME);
   }
   aec3Wrapper.process=aec3.cwrap("aec3_process","void",["number","number","number","number"]);  
   aec3Wrapper.process_wrapped = function(ms,i16ary,ns) {
-    const num=i16ary.length;
-    const ptr=aec3._malloc(2*num);
-    if(ptr==null) throw new "_malloc fail";
-    aec3.HEAP16.set(i16ary, ptr/2);
-    this.process(ms,ptr,num,ns);
-    const data=aec3.HEAP16.subarray(ptr/2,ptr/2+num);
-    for(let i=0;i<num;i++)i16ary[i]=data[i];
+    if(!this.initialized) {
+      console.log("aec3 not init");
+      return;
+    }    
+    aec3.HEAP16.set(i16ary, this.workmem/2);
+    this.process(ms,this.workmem,AEC3_SAMPLES_PER_FRAME,ns);
+    const data=aec3.HEAP16.subarray(this.workmem/2,this.workmem/2+AEC3_SAMPLES_PER_FRAME);
+    for(let i=0;i<AEC3_SAMPLES_PER_FRAME;i++)i16ary[i]=data[i];
   }
   
   aec3Wrapper.debug_print();
