@@ -1,6 +1,8 @@
 {
   "dependencies": {
+    "@discordjs/opus": "^0.8.0",
     "node-record-lpcm16": "^1.0.1",
-    "speaker": "^0.5.4"
+    "speaker": "^0.5.4",
+    "ws": "^8.8.1"
   }
 }
