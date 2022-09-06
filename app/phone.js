@@ -8,65 +8,28 @@
  */
 const recorder = require('node-record-lpcm16'); // nodeモジュールを読み込む
 const fs=require("fs");
+const ws=require("ws");
+const {OpusEncoder}=require("@discordjs/opus");
 
-const FREQ=48000;
-const AEC3_SAMPLES_PER_FRAME=FREQ/100;
-
-const aec3 = require('./aec3.js');
-
-let aec3Wrapper={ initialized: false};
-aec3.onRuntimeInitialized = () => {
-  aec3Wrapper.init=aec3.cwrap("aec3_init","void",["number","number"]);
-  aec3Wrapper.debug_print=aec3.cwrap("aec3_debug_print","void",[]);
-  aec3Wrapper.get_metrics_echo_return_loss_enhancement=aec3.cwrap("aec3_get_metrics_echo_return_loss_enhancement","number",[]);
-  aec3Wrapper.get_metrics_delay_ms=aec3.cwrap("aec3_get_metrics_delay_ms","number",[]);
-  aec3Wrapper.update_ref_frame=aec3.cwrap("aec3_update_ref_frame","void",["number","number"]);  
-  aec3Wrapper.update_ref_frame_wrapped = function(i16ary) {
-    const num=i16ary.length;
-    const ptr=aec3._malloc(Int16Array.BYTES_PER_ELEMENT*num);
-    if(ptr==null) throw new "_malloc fail";
-    aec3.HEAP16.set(i16ary, ptr/Int16Array.BYTES_PER_ELEMENT);
-    this.update_ref_frame(ptr,num);
-  }
-  aec3Wrapper.update_rec_frame=aec3.cwrap("aec3_update_rec_frame","void",["number","number"]);  
-  aec3Wrapper.update_rec_frame_wrapped = function(i16ary) {
-    const num=i16ary.length;
-    const ptr=aec3._malloc(2*num);
-    if(ptr==null) throw new "_malloc fail";
-    aec3.HEAP16.set(i16ary, ptr/2);
-    this.update_rec_frame(ptr,num);
-  }
-  aec3Wrapper.process=aec3.cwrap("aec3_process","void",["number","number","number","number"]);  
-  aec3Wrapper.process_wrapped = function(ms,i16ary,ns) {
-    const num=i16ary.length;
-    const ptr=aec3._malloc(2*num);
-    if(ptr==null) throw new "_malloc fail";
-    aec3.HEAP16.set(i16ary, ptr/2);
-    this.process(ms,ptr,num,ns);
-    const data=aec3.HEAP16.subarray(ptr/2,ptr/2+num);
-    for(let i=0;i<num;i++)i16ary[i]=data[i];
-  }
-  
-  aec3Wrapper.debug_print();
-  aec3Wrapper.init(4,0);
-  aec3Wrapper.initialized=true;  
-}
+const {
+  aec3Wrapper,
+  getVolumeBar,
+  FREQ,
+  SAMPLES_PER_FRAME,
+  createJitterBuffer
+}=require("./util.js");
 
 
-// "******      " のような文字列を返す
-function getVolumeBar(l16sample) {
-  const vol=Math.abs(l16sample);
-  const bar = vol / 1024;
-  const space = 32-bar;
-  return "*".repeat(bar)+" ".repeat(space); 
-}
+const dest_host=process.argv[2] || "172.105.239.246"; // default test server ip
+
+const encoder=new OpusEncoder(FREQ,1); // 1 ch: monoral
+
 
 ///////////
 // recording
-const g_samples=[]; // lpcm16
-let g_rec_max_sample=0, g_play_max_sample=0;
-let g_enh=0;
-
+let g_rec_count=0;
+const g_rec=[]; // lpcm16
+const g_ref=[]; 
 recorder
   .record({
     sampleRate: FREQ, // マイクデバイスのサンプリングレートを指定
@@ -76,14 +39,14 @@ recorder
   .stream()
   .on('error', console.error) // エラーが起きたときにログを出力する
   .on('data', function(data) { // マイクからデータを受信する無名コールバック関数
+    g_rec_count++;
     const sampleNum=data.length/2;
     g_rec_max_sample=0;
     for(let i=0;i<sampleNum;i++) {
       const sample=data.readInt16LE(i*2);
-      g_samples.push(sample);
+      g_rec.push(sample);
       if(sample>g_rec_max_sample)g_rec_max_sample=sample;
     }
-//    console.log("rec:",g_samples.length,"[0]:",g_samples[0]);
   });
 
 /////////////////////
@@ -93,54 +56,27 @@ const Readable=require("stream").Readable;
 const Speaker=require("speaker");
 
 const player=new Readable();
-player.ref=[];
-player._read = function(n) { // Speakerモジュールで新しいサンプルデータが必要になったら呼び出されるコールバック関数 n:バイト数
-  if(g_samples.length>=9600) {
-    let loopNum=Math.floor(g_samples.length/AEC3_SAMPLES_PER_FRAME);
-    if(loopNum>10) loopNum=10;
-    const toplay = new Uint8Array(AEC3_SAMPLES_PER_FRAME*2*loopNum);
-    const dv=new DataView(toplay.buffer);
-    const rec=new Int16Array(AEC3_SAMPLES_PER_FRAME);
-    const st=new Date().getTime();
-    for(let j=0;j<loopNum;j++) {      
-      for(let i=0;i<AEC3_SAMPLES_PER_FRAME;i++) {
-        rec[i]=g_samples.shift();
-      }
-      if(aec3Wrapper.initialized) {
-        aec3Wrapper.update_rec_frame_wrapped(rec);
-        const ref=new Int16Array(AEC3_SAMPLES_PER_FRAME);
-        for(let i=0;i<AEC3_SAMPLES_PER_FRAME;i++) {
-          ref[i]=this.ref.shift();
-        }
-        aec3Wrapper.update_ref_frame_wrapped(ref);
-        const processed=new Int16Array(AEC3_SAMPLES_PER_FRAME);
-        for(let i=0;i<AEC3_SAMPLES_PER_FRAME;i++) processed[i]=123;
-        aec3Wrapper.process_wrapped(80,processed,1);
-        g_play_max_sample=0;
-        for(let i=0;i<AEC3_SAMPLES_PER_FRAME;i++) {
-          const sample=processed[i];
-          dv.setInt16((j*AEC3_SAMPLES_PER_FRAME+i)*2,sample,true);
-          this.ref.push(sample);
-          if(sample>g_play_max_sample)g_play_max_sample=sample;
-        }
-      } else {
-        console.log("aec3 is not initialized yet");
-      }
-    }
-    const et=new Date().getTime();
-    g_enh=aec3Wrapper.get_metrics_echo_return_loss_enhancement();
-    this.push(toplay);
+
+// Speakerモジュールで新しいサンプルデータが必要になったら呼び出されるコールバック関数 n:バイト数
+// nは8192とか480で割り切れない長さだが、キャンセル処理が480単位でしかできないので、それに合わせる。
+let g_read_count=0;
+player._read = function(n) {
+  g_read_count++;  
+  if(g_playbuf.needJitter) {
+    this.push(Buffer.from(new Uint8Array(n).buffer));
+    for(let i=0;i<n/2;i++) g_ref.push(0);
   } else {
-    console.log("need more samples!");
-    const sampleNum=n/2;
-    const toplay = new Uint8Array(n);
-    const dv=new DataView(toplay.buffer);
+    let sampleNum=n/2;
+    if(sampleNum>g_playbuf.used()) sampleNum=g_playbuf.used();
+    const i16b=new Int16Array(sampleNum);
+
+    g_play_max_sample=0;
     for(let i=0;i<sampleNum;i++) {
-      const sample=0;
-      dv.setInt16(i*2,sample,true);
-      this.ref.push(sample);
+      i16b[i]=g_playbuf.shift();
+      g_ref.push(i16b[i]);
+      if(i16b[i]>g_play_max_sample)g_play_max_sample=i16b[i];
     }
-    this.push(toplay);
+    this.push(Buffer.from(i16b.buffer));    
   }
 }
 
@@ -152,9 +88,138 @@ const spk=new Speaker({
 
 player.pipe(spk); 
 
-setInterval(function() {
-  console.log("rec:",getVolumeBar(g_rec_max_sample),
-              "play:",getVolumeBar(g_play_max_sample),
-              "buffer:",g_samples.length,
-              "Enhance:",getVolumeBar(g_enh*2000));
-},50);
+
+/////////////////////
+// processing
+
+const g_playbuf=createJitterBuffer(48000*0.2);
+
+function processAudio() {
+  if(!aec3Wrapper.initialized) {    
+    return;
+  }
+
+  let frameNum=Math.floor(g_rec.length/SAMPLES_PER_FRAME);
+  const st=new Date().getTime();
+  for(let fi=0;fi<frameNum;fi++) {
+
+    // マイクから入力した音をキャンセラーに入れる
+    const recFrame=new Int16Array(SAMPLES_PER_FRAME);
+    for(let i=0;i<SAMPLES_PER_FRAME;i++) recFrame[i]=g_rec.shift();
+    aec3Wrapper.update_rec_frame_wrapped(recFrame);
+
+    // 以前再生した音をキャンセラーに入れる    
+    const refFrame=new Int16Array(SAMPLES_PER_FRAME);
+    for(let i=0;i<SAMPLES_PER_FRAME;i++) refFrame[i]=g_ref.shift();
+    aec3Wrapper.update_ref_frame_wrapped(refFrame);
+    
+    // キャンセラーを実行
+    const processedFrame=new Int16Array(SAMPLES_PER_FRAME);
+    aec3Wrapper.process_wrapped(80,processedFrame,1); // 1: use NS
+    
+    // encode, 送信
+    let maxProcessedVolume=0;
+    for(let i in processedFrame) {
+      if(processedFrame[i]>maxProcessedVolume)maxProcessedVolume=processedFrame[i];
+    }
+    const encoded=encoder.encode(processedFrame);
+    g_cl.sendEncodedData(encoded,maxProcessedVolume);
+    
+    // ネットワークから受信した音をミキシングする
+    const mixedFrame=new Int16Array(SAMPLES_PER_FRAME);
+    for(let j=0;j<SAMPLES_PER_FRAME;j++) mixedFrame[j]=0;
+
+    for(let i in g_recvbufs) {
+      const rb=g_recvbufs[i];
+      if(rb.needJitter) continue;
+      for(let j=0;j<SAMPLES_PER_FRAME;j++) {
+        mixedFrame[j]+=rb.shift();
+      }      
+    }
+    // 再生
+    for(let i in mixedFrame) {
+      g_playbuf.push(mixedFrame[i]);
+    }
+  }
+  enh=aec3Wrapper.get_metrics_echo_return_loss_enhancement();      
+
+  const et=new Date().getTime();
+  const process_time=et-st;
+  
+  console.log("rec:",getVolumeBar(g_rec[0]),
+              "msg:",getVolumeBar(g_cl.recv_volume),
+              "play:",getVolumeBar(g_playbuf.samples[0]),
+              "ref:",getVolumeBar(g_ref[0]),              
+              "recL:",g_rec.length,
+              "Enhance:",Math.floor(enh*1000),
+              "ws:",g_cl.readyState,
+              "frameNum:",frameNum,
+              "t:",process_time,
+              "read:",g_read_count,
+              "rec:",g_rec_count,
+              "refnum",g_ref.length
+              );
+
+}
+
+setInterval(()=>{
+  processAudio();
+},20);
+
+////////////////////
+// network
+
+const g_recvbufs=[]; // バッファの配列
+function getRecvbufByUserId(uid) {
+  for(let i in g_recvbufs){
+    const rb=g_recvbufs[i];
+    if(rb.uid==uid) return rb;
+  }
+  return null;
+}
+function ensureRecvbuf(uid) {
+  const rb=getRecvbufByUserId(uid);
+  if(rb) return rb;
+  const nrb=createJitterBuffer(48000*0.2);
+  nrb.uid=uid;
+  console.log("created jitter buffer for user:",uid);
+  g_recvbufs.push(nrb);
+  return nrb;
+}
+const g_cl = new ws.WebSocket(`ws://${dest_host}:13478/`);
+
+g_cl.on('open', function open() {
+  this.msg_count=0;
+  // cl.send('something');
+  console.log("connection opened");
+});
+
+g_cl.on('message', function message(data) {
+  this.msg_count++;
+  const tks=data.toString().split(" ");
+  const uid=tks[0], cmd=tks[1], arg0=tks[2],arg1=tks[3];
+  if(cmd=="e") {
+    this.recv_volume=parseInt(arg0);
+    const sd=new Uint8Array(arg1.split(",").map(v => parseInt(v, 16)))
+    const decoded=encoder.decode(Buffer.from(sd));
+    const dv=new DataView(decoded.buffer);
+    const n=decoded.length/2;
+    const rb=ensureRecvbuf(uid);
+    for(let i=0;i<n;i++) {
+      rb.push(dv.getInt16(i*2,true));
+    }
+    //console.log("rb:",rb.uid,rb.samples.length);
+  }
+});
+g_cl.sendEncodedData = function(data,vol) {
+  if(this.readyState==1) {
+    const u8a=new Uint8Array(data);
+    const s=Array.from(data).map(v => v.toString(16)).join(',')
+    this.send("e "+vol+" "+s); // echoback    
+  } else {
+    console.log("ws not ready");
+  }
+}
+
+
+

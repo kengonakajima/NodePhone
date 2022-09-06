@@ -48,12 +48,37 @@ aec3.onRuntimeInitialized = () => {
 
 // "******      " のような文字列を返す
 function getVolumeBar(l16sample) {
-  const vol=Math.abs(l16sample);
-  const bar = vol / 1024;
-  const space = 32-bar;
+  const vol=Math.abs(l16sample) || 0;
+  const bar = vol / 2048;
+  const space = 16-bar;
   return "*".repeat(bar)+" ".repeat(space); 
 }
 
+
+function createJitterBuffer(jitter) {
+  const b={};
+  b.samples=[]; // i16le
+  b.jitter=jitter;
+  b.needJitter=true;
+  b.push=function(sample) {
+    this.samples.push(sample);
+    if(this.needJitter && this.samples.length>this.jitter) {
+      console.log("jitterbuffer: filled jitter:",this.jitter);
+      this.needJitter=false;
+    }
+  }
+  b.shift=function() {
+    return this.samples.shift();
+  }
+  b.clear=function() {
+    this.samples=[];
+  }
+  b.used=function(){return this.samples.length;}
+  return b;
+}
+
+
+exports.createJitterBuffer=createJitterBuffer;
 exports.FREQ = FREQ;
 exports.SAMPLES_PER_FRAME = SAMPLES_PER_FRAME;
 exports.aec3Wrapper = aec3Wrapper;
