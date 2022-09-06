@@ -19,8 +19,17 @@ const {
   createJitterBuffer
 }=require("./util.js");
 
+let g_dest_host="172.105.239.246"; // default test server ip
+let g_echoback=false;
+for(let i=2;i<process.argv.length;i++) {
+  const arg=process.argv[i];
+  if(arg.indexOf("--")==0) {
+    if(arg.indexOf("echoback")) g_echoback=true;
+  } else {
+    g_dest_host=arg;
+  }  
+}
 
-const dest_host=process.argv[2] || "172.105.239.246"; // default test server ip
 
 const encoder=new OpusEncoder(FREQ,1); // 1 ch: monoral
 
@@ -186,7 +195,7 @@ function ensureRecvbuf(uid) {
   g_recvbufs.push(nrb);
   return nrb;
 }
-const g_cl = new ws.WebSocket(`ws://${dest_host}:13478/`);
+const g_cl = new ws.WebSocket(`ws://${g_dest_host}:13478/`);
 
 g_cl.on('open', function open() {
   this.msg_count=0;
@@ -198,7 +207,8 @@ g_cl.on('message', function message(data) {
   this.msg_count++;
   const tks=data.toString().split(" ");
   const uid=tks[0], cmd=tks[1], arg0=tks[2],arg1=tks[3];
-  if(cmd=="e") {
+  // echoback or othercast
+  if(cmd=="e"||cmd=="o") { 
     this.recv_volume=parseInt(arg0);
     const sd=new Uint8Array(arg1.split(",").map(v => parseInt(v, 16)))
     const decoded=encoder.decode(Buffer.from(sd));
@@ -215,7 +225,8 @@ g_cl.sendEncodedData = function(data,vol) {
   if(this.readyState==1) {
     const u8a=new Uint8Array(data);
     const s=Array.from(data).map(v => v.toString(16)).join(',')
-    this.send("e "+vol+" "+s); // echoback    
+    const cmd = g_echoback ? "e" : "o";
+    this.send(cmd+" "+vol+" "+s); // echoback    
   } else {
     console.log("ws not ready");
   }
