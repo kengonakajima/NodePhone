@@ -77,7 +77,15 @@ function createJitterBuffer(jitter) {
   return b;
 }
 
+function getMaxValue(ary){
+  let maxv=-9999999;
+  for(let i in ary) {
+    if(ary[i]>maxv) maxv=ary[i];
+  }
+  return maxv;
+}
 
+exports.getMaxValue=getMaxValue;
 exports.createJitterBuffer=createJitterBuffer;
 exports.FREQ = FREQ;
 exports.SAMPLES_PER_FRAME = SAMPLES_PER_FRAME;
