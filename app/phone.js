@@ -5,7 +5,7 @@
 
   node phone.js [server_ip]
   
- */
+*/
 const recorder = require('node-record-lpcm16'); // nodeモジュールを読み込む
 const fs=require("fs");
 const ws=require("ws");
@@ -27,7 +27,6 @@ let g_enable_aec3=true;
 for(let i=2;i<process.argv.length;i++) {
   const arg=process.argv[i];
   if(arg.indexOf("--")==0) {
-    console.log("ARG:",arg,arg.indexOf("disable_aec"));
     if(arg.indexOf("echoback")>0) g_echoback=true;
     else if(arg.indexOf("disable_aec")>0) g_enable_aec3=false;
   } else {
@@ -162,27 +161,40 @@ function processAudio() {
 
   const et=new Date().getTime();
   const process_time=et-st;
-  
-  console.log("rec:",getVolumeBar(g_rec[0]),
-              "msg:",getVolumeBar(g_cl.recv_volume),
-              "play:",getVolumeBar(g_playbuf.samples[0]),
-              "ref:",getVolumeBar(g_ref[0]),              
-              "recL:",g_rec.length,
-              "Enhance:",Math.floor(enh*1000),
-              "ws:",g_cl.readyState,
-              "frameNum:",frameNum,
-              "t:",process_time,
-              "read:",g_read_count,
-              "rec:",g_rec_count,
-              "refnum",g_ref.length,
-              "aec3",g_enable_aec3
-              );
 
+  const lines=[
+    "Recorded vol: "+getVolumeBar(g_rec[0]),
+    "Received vol: "+getVolumeBar(g_cl.recv_volume),
+    "Playing vol:  "+getVolumeBar(g_playbuf.samples[0]),
+    "Reference vol:"+getVolumeBar(g_ref[0]),
+    "",
+    "g_rec.length: "+g_rec.length,
+    "Enhanced:     "+Math.floor(enh*1000),
+    "ws readyState:"+g_cl.readyState,
+    "frameNum:     "+frameNum,
+    "process time: "+process_time,
+    "read count:   "+g_read_count,
+    "record count: "+g_rec_count,
+    "g_ref.length: "+g_ref.length,
+    "AEC3 enable:  "+g_enable_aec3,
+    "Echoback:     "+g_echoback,
+    "",
+    "Recvbufs:"
+  ];
+  for(let i in g_recvbufs) {
+    const rb=g_recvbufs[i];
+    lines.push("["+i+"] user:"+rb.uid+" samples:"+rb.samples.length+" needJitter:"+rb.needJitter+" recvCount:"+rb.recvCount);
+  }
+
+  process.stdout.write('\033c');
+  console.log(lines.join("\n"));
 }
+
 
 setInterval(()=>{
   processAudio();
 },20);
+
 
 ////////////////////
 // network
@@ -200,6 +212,7 @@ function ensureRecvbuf(uid) {
   if(rb) return rb;
   const nrb=createJitterBuffer(48000*0.2);
   nrb.uid=uid;
+  nrb.recvCount=0;
   console.log("created jitter buffer for user:",uid);
   g_recvbufs.push(nrb);
   return nrb;
@@ -224,10 +237,8 @@ g_cl.on('message', function message(data) {
     const dv=new DataView(decoded.buffer);
     const n=decoded.length/2;
     const rb=ensureRecvbuf(uid);
-    for(let i=0;i<n;i++) {
-      rb.push(dv.getInt16(i*2,true));
-    }
-    //console.log("rb:",rb.uid,rb.samples.length);
+    for(let i=0;i<n;i++) rb.push(dv.getInt16(i*2,true));
+    rb.recvCount++;    
   }
 });
 g_cl.sendEncodedData = function(data,vol) {

@@ -49,8 +49,8 @@ aec3.onRuntimeInitialized = () => {
 // "******      " のような文字列を返す
 function getVolumeBar(l16sample) {
   const vol=Math.abs(l16sample) || 0;
-  const bar = vol / 2048;
-  const space = 16-bar;
+  const bar = vol / 512;
+  const space = 64-bar;
   return "*".repeat(bar)+" ".repeat(space); 
 }
 
