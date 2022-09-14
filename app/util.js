@@ -7,10 +7,12 @@ const SAMPLES_PER_FRAME=FREQ/100;
 let aec3Wrapper={ initialized: false};
 aec3.onRuntimeInitialized = () => {
   aec3Wrapper.workmem=aec3._malloc(2*SAMPLES_PER_FRAME);
-  aec3Wrapper.init=aec3.cwrap("aec3_init","void",["number","number"]);
+  aec3Wrapper.init=aec3.cwrap("aec3_init","void",["number","number","number"]);
   aec3Wrapper.debug_print=aec3.cwrap("aec3_debug_print","void",[]);
   aec3Wrapper.get_metrics_echo_return_loss_enhancement=aec3.cwrap("aec3_get_metrics_echo_return_loss_enhancement","number",[]);
   aec3Wrapper.get_metrics_delay_ms=aec3.cwrap("aec3_get_metrics_delay_ms","number",[]);
+  aec3Wrapper.get_voice_probability=aec3.cwrap("aec3_get_voice_probability",[]);
+  aec3Wrapper.notify_key_pressed=aec3.cwrap("aec3_notify_key_pressed",["number"]);
   aec3Wrapper.update_ref_frame=aec3.cwrap("aec3_update_ref_frame","void",["number","number"]);  
   aec3Wrapper.update_ref_frame_wrapped = function(i16ary) {
     if(!this.initialized) {
@@ -42,7 +44,7 @@ aec3.onRuntimeInitialized = () => {
   }
   
   aec3Wrapper.debug_print();
-  aec3Wrapper.init(4,0);
+  aec3Wrapper.init(4,0,1); // NS level 4, no loopback, vad=on
   aec3Wrapper.initialized=true;  
 }
 

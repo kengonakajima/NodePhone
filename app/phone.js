@@ -178,6 +178,7 @@ function processAudio() {
     "g_ref.length: "+g_ref.length,
     "AEC3 enable:  "+g_enable_aec3,
     "Echoback:     "+g_echoback,
+    "Voice:        "+aec3Wrapper.get_voice_probability(),
     "",
     "Recvbufs:"
   ];

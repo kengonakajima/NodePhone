@@ -104,8 +104,10 @@ const spk=new Speaker({
 player.pipe(spk); 
 
 setInterval(function() {
-  console.log("rec:",getVolumeBar(g_rec_max_sample),
-              "play:",getVolumeBar(g_play_max_sample),
-              "buffer:",g_samples.length,
-              "Enhance:",getVolumeBar(g_enh*2000));
+  process.stdout.write('\033c');  
+  console.log("rec:",getVolumeBar(g_rec_max_sample));
+  console.log("play:",getVolumeBar(g_play_max_sample));
+  console.log("buffer:",g_samples.length);
+  console.log("Enhance:",getVolumeBar(g_enh*2000));
+  console.log("Voice:",aec3Wrapper.get_voice_probability());
 },50);
