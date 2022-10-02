@@ -29,10 +29,10 @@ recorder
         if(enable_dump) {
           let s_ary=[];
           for(let i=0;i<unit;i++) s_ary[i]=(array[i]&0xffff).toString(16);
-          console.log("raw samples:",s_ary.join(" "));
+          console.log("raw samples:",s_ary.join(" "),"samples:",s_ary.length);
           s_ary=[];
           for(let i=0;i<encoded.length;i++) s_ary[i]=encoded[i].toString(16);
-          console.log("encoded:",s_ary.join(" "));          
+          console.log("encoded:",s_ary.join(" "),"bytes:",s_ary.length);          
         }
       } else {
         // エンコードできるサンプルがなくなったらやめる
