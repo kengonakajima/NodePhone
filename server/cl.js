@@ -8,7 +8,7 @@ if(!dest_host) {
 const cl = new ws.WebSocket(`ws://${dest_host}:13478/`);
 
 cl.on('open', function open() {
-  cl.send('something');
+  cl.send("echoback hello");
 });
 
 cl.on('message', function message(data) {

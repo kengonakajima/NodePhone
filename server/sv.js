@@ -39,6 +39,5 @@ wsv.on('connection', function connection(co) {
       co.send(co.id+" "+s);
     }
   });
-  co.send('something');
 });
 
