@@ -4,14 +4,14 @@ const Speaker=require("speaker");
 const sine=new Readable(); // 
 sine.t=0;    // 音波を生成する際の時刻カウンター
 sine._read = function(n) { // Speakerモジュールで新しいサンプルデータが必要になったら呼び出されるコールバック関数 n:バイト数
-    const sampleNum = n/2; // サンプルデータの数を計算する。16ビットPCMなのでnを2バイトで割る
-    const u8ary = new Uint8Array(n); // 出力用データの配列
-    const dv=new DataView(u8ary.buffer); // 16ビットリトルエンディアン整数の出力用
-    for(var i=0;i<sampleNum;i++) { // 必要なサンプリングデータの数だけループさせる
-        this.t += Math.PI/16.0; // 1サンプルごとに時間を進める(2PI=3.14*2=6.28進めると1周期)
-        dv.setInt16(i*2,Math.sin(this.t)*20000,true); // 振幅を-20000から20000の間で出力
-    }
-    this.push(u8ary); // 最終的な値を出力
+  const sampleNum = n/2; // サンプルデータの数を計算する。16ビットPCMなのでnを2バイトで割る
+  const u8ary = new Uint8Array(n); // 出力用データの配列
+  const dv=new DataView(u8ary.buffer); // 16ビットリトルエンディアン整数の出力用
+  for(var i=0;i<sampleNum;i++) { // 必要なサンプリングデータの数だけループさせる
+    this.t += Math.PI/16.0; // 1サンプルごとに時間を進める(2PI=3.14*2=6.28進めると1周期)
+    dv.setInt16(i*2,Math.sin(this.t)*20000,true); // 振幅を-20000から20000の間で出力
+  }
+  this.push(u8ary); // 最終的な値を出力
 }
 
 const spk=new Speaker({ 
