@@ -8,8 +8,8 @@ sine._read = function(n) { // Speakerモジュールで新しいサンプルデ�
   this.dt+=Math.PI/15; // tの増分を増やす(音の周波数を少し高くする)
   const hz=this.dt*12000/Math.PI/2.0; // 周波数を計算する
   const nyquist=12000/2; // 再生周波数が12000なので、その半分の6000Hzがナイキスト周波数
-  const over=(hz>=nyquist); 
-  console.log("dt:",this.fdt,"hz:",Math.floor(hz),"over_nyquist:",over);
+  const over=(hz>=nyquist);  // ナイキスト周波数を超えているか？
+  console.log("dt:",this.fdt,"hz:",Math.floor(hz),"over_nyquist:",over); // 表示
   
   const sampleNum = n/2; // サンプルデータの数を計算する。16ビットPCMなのでnを2バイトで割る
   const u8ary = new Uint8Array(n); // 出力用データの配列
