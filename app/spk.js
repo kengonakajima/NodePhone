@@ -9,10 +9,10 @@ sine._read = function(n) { // Speakerモジュールで新しいサンプルデ�
   const dv=new DataView(u8ary.buffer); // 16ビットリトルエンディアン整数の出力用
   for(var i=0;i<sampleNum;i++) { // 必要なサンプリングデータの数だけループさせる
     this.t += Math.PI/16.0; // 1サンプルごとに時間を進める(2PI=3.14*2=6.28進めると1周期)
-    const y=Math.sin(this.t);
-    const v=Math.floor(y);
-    const sample=v*20000;
-    dv.setInt16(i*2,sample,true); // 振幅を-20000から20000の間で出力
+    const y=Math.sin(this.t); // sinの値を求める
+    const v=Math.floor(y); // 整数にする
+    const sample=v*20000; // 振幅を掛ける
+    dv.setInt16(i*2,sample,true); // バッファに書き込む
   }
   this.push(u8ary); // 最終的な値を出力
 }
