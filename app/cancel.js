@@ -6,10 +6,11 @@ const fs=require("fs");
 const {
   aec3Wrapper,
   getVolumeBar,
-  FREQ,
-  SAMPLES_PER_FRAME,
 }=require("./util.js");
 
+let freq=48000;
+if(process.argv[2]) freq=parseInt(process.argv[2]); // 起動時の引数で周波数を与える
+aec3Wrapper.setFrequency(freq);
 
 
 ///////////
@@ -20,7 +21,7 @@ let g_enh=0;
 
 recorder
   .record({
-    sampleRate: FREQ, // マイクデバイスのサンプリングレートを指定
+    sampleRate: freq, // マイクデバイスのサンプリングレートを指定
     channels: 1,  // チャンネル数を指定(モノラル)              
     recordProgram: 'rec', // 録音用のバックエンドプログラム名を指定
   })
@@ -47,30 +48,30 @@ const player=new Readable();
 player.ref=[];
 player._read = function(n) { // Speakerモジュールで新しいサンプルデータが必要になったら呼び出されるコールバック関数 n:バイト数
   if(g_samples.length>=9600) {
-    let loopNum=Math.floor(g_samples.length/SAMPLES_PER_FRAME);
+    let loopNum=Math.floor(g_samples.length/aec3Wrapper.samples_per_frame);
     if(loopNum>10) loopNum=10;
-    const toplay = new Uint8Array(SAMPLES_PER_FRAME*2*loopNum);
+    const toplay = new Uint8Array(aec3Wrapper.samples_per_frame*2*loopNum);
     const dv=new DataView(toplay.buffer);
-    const rec=new Int16Array(SAMPLES_PER_FRAME);
+    const rec=new Int16Array(aec3Wrapper.samples_per_frame);
     const st=new Date().getTime();
     for(let j=0;j<loopNum;j++) {      
-      for(let i=0;i<SAMPLES_PER_FRAME;i++) {
+      for(let i=0;i<aec3Wrapper.samples_per_frame;i++) {
         rec[i]=g_samples.shift();
       }
       if(aec3Wrapper.initialized) {
         aec3Wrapper.update_rec_frame_wrapped(rec);
-        const ref=new Int16Array(SAMPLES_PER_FRAME);
-        for(let i=0;i<SAMPLES_PER_FRAME;i++) {
+        const ref=new Int16Array(aec3Wrapper.samples_per_frame);
+        for(let i=0;i<aec3Wrapper.samples_per_frame;i++) {
           ref[i]=this.ref.shift();
         }
         aec3Wrapper.update_ref_frame_wrapped(ref);
-        const processed=new Int16Array(SAMPLES_PER_FRAME);
-        for(let i=0;i<SAMPLES_PER_FRAME;i++) processed[i]=123;
+        const processed=new Int16Array(aec3Wrapper.samples_per_frame);
+        for(let i=0;i<aec3Wrapper.samples_per_frame;i++) processed[i]=123;
         aec3Wrapper.process_wrapped(80,processed,1);
         g_play_max_sample=0;
-        for(let i=0;i<SAMPLES_PER_FRAME;i++) {
+        for(let i=0;i<aec3Wrapper.samples_per_frame;i++) {
           const sample=processed[i];
-          dv.setInt16((j*SAMPLES_PER_FRAME+i)*2,sample,true);
+          dv.setInt16((j*aec3Wrapper.samples_per_frame+i)*2,sample,true);
           this.ref.push(sample);
           if(sample>g_play_max_sample)g_play_max_sample=sample;
         }
@@ -98,7 +99,7 @@ player._read = function(n) { // Speakerモジュールで新しいサンプル�
 const spk=new Speaker({ 
   channels: 1, // チャンネル数は1(モノラル)
   bitDepth: 16, // サンプリングデータのビット数は16 (デフォルトはリトルエンディアン)
-  sampleRate: FREQ, // サンプリングレート(Hz)
+  sampleRate: freq, // サンプリングレート(Hz)
 });
 
 player.pipe(spk); 

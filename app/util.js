@@ -1,26 +1,32 @@
+const assert = require("assert");
 const aec3 = require('./aec3.js');
-
-const FREQ=48000;
-const SAMPLES_PER_FRAME=FREQ/100;
 
 
 let aec3Wrapper={ initialized: false};
 aec3.onRuntimeInitialized = () => {
-  aec3Wrapper.workmem=aec3._malloc(2*SAMPLES_PER_FRAME);
+  console.log("aec3.onRuntimeInitialized called");
   aec3Wrapper.init=aec3.cwrap("aec3_init","void",["number","number","number"]);
   aec3Wrapper.debug_print=aec3.cwrap("aec3_debug_print","void",[]);
   aec3Wrapper.get_metrics_echo_return_loss_enhancement=aec3.cwrap("aec3_get_metrics_echo_return_loss_enhancement","number",[]);
   aec3Wrapper.get_metrics_delay_ms=aec3.cwrap("aec3_get_metrics_delay_ms","number",[]);
   aec3Wrapper.get_voice_probability=aec3.cwrap("aec3_get_voice_probability",[]);
   aec3Wrapper.notify_key_pressed=aec3.cwrap("aec3_notify_key_pressed",["number"]);
-  aec3Wrapper.update_ref_frame=aec3.cwrap("aec3_update_ref_frame","void",["number","number"]);  
+  aec3Wrapper.update_ref_frame=aec3.cwrap("aec3_update_ref_frame","void",["number","number"]);
+  aec3Wrapper.ensureWorkmem = function() {
+    if(this.workmem)return;
+    assert(this.freq>0);
+    assert(this.samples_per_frame>0);    
+    this.workmem = aec3._malloc(this.samples_per_frame*2);
+    return this.workmem;
+  }
   aec3Wrapper.update_ref_frame_wrapped = function(i16ary) {
     if(!this.initialized) {
       console.log("aec3 not init");
       return;
     }
+    this.ensureWorkmem();
     aec3.HEAP16.set(i16ary, this.workmem/Int16Array.BYTES_PER_ELEMENT);
-    this.update_ref_frame(this.workmem,SAMPLES_PER_FRAME);
+    this.update_ref_frame(this.workmem,this.samples_per_frame);
   }
   aec3Wrapper.update_rec_frame=aec3.cwrap("aec3_update_rec_frame","void",["number","number"]);  
   aec3Wrapper.update_rec_frame_wrapped = function(i16ary) {
@@ -29,7 +35,7 @@ aec3.onRuntimeInitialized = () => {
       return;
     }    
     aec3.HEAP16.set(i16ary, this.workmem/2);
-    this.update_rec_frame(this.workmem,SAMPLES_PER_FRAME);
+    this.update_rec_frame(this.workmem,this.samples_per_frame);
   }
   aec3Wrapper.process=aec3.cwrap("aec3_process","void",["number","number","number","number"]);  
   aec3Wrapper.process_wrapped = function(ms,i16ary,ns) {
@@ -38,15 +44,23 @@ aec3.onRuntimeInitialized = () => {
       return;
     }    
     aec3.HEAP16.set(i16ary, this.workmem/2);
-    this.process(ms,this.workmem,SAMPLES_PER_FRAME,ns);
-    const data=aec3.HEAP16.subarray(this.workmem/2,this.workmem/2+SAMPLES_PER_FRAME);
-    for(let i=0;i<SAMPLES_PER_FRAME;i++)i16ary[i]=data[i];
+    this.process(ms,this.workmem,this.samples_per_frame,ns);
+    const data=aec3.HEAP16.subarray(this.workmem/2,this.workmem/2+this.samples_per_frame);
+    for(let i=0;i<this.samples_per_frame;i++)i16ary[i]=data[i];
   }
-  
   aec3Wrapper.debug_print();
-  aec3Wrapper.init(4,0,1); // NS level 4, no loopback, vad=on
+  console.log("KKK",aec3Wrapper.freq);
+  assert(aec3Wrapper.freq==16000 || aec3Wrapper.freq==32000 || aec3Wrapper.freq==48000);
+  aec3Wrapper.init(4,0,1,aec3Wrapper.freq); // NS level 4, no loopback, vad=on
   aec3Wrapper.initialized=true;  
+  
 }
+aec3Wrapper.setFrequency = function(freq) {
+  this.freq=freq;
+  this.samples_per_frame=Math.floor(freq/100);
+  console.log("aec3Wrapper.setFrequency:",freq);
+}
+
 
 // "******      " のような文字列を返す
 function getVolumeBar(l16sample) {
@@ -89,7 +103,5 @@ function getMaxValue(ary){
 
 exports.getMaxValue=getMaxValue;
 exports.createJitterBuffer=createJitterBuffer;
-exports.FREQ = FREQ;
-exports.SAMPLES_PER_FRAME = SAMPLES_PER_FRAME;
 exports.aec3Wrapper = aec3Wrapper;
 exports.getVolumeBar = getVolumeBar;

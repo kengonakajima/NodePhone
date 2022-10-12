@@ -4275,6 +4275,21 @@ var _aec3_get_loopback_buffer_used = Module["_aec3_get_loopback_buffer_used"] = 
 };
 
 /** @type {function(...*):?} */
+var _aec3_get_base_freq = Module["_aec3_get_base_freq"] = function() {
+  return (_aec3_get_base_freq = Module["_aec3_get_base_freq"] = Module["asm"]["aec3_get_base_freq"]).apply(null, arguments);
+};
+
+/** @type {function(...*):?} */
+var _aec3_get_samples_per_frame = Module["_aec3_get_samples_per_frame"] = function() {
+  return (_aec3_get_samples_per_frame = Module["_aec3_get_samples_per_frame"] = Module["asm"]["aec3_get_samples_per_frame"]).apply(null, arguments);
+};
+
+/** @type {function(...*):?} */
+var _aec3_get_bytes_per_frame = Module["_aec3_get_bytes_per_frame"] = function() {
+  return (_aec3_get_bytes_per_frame = Module["_aec3_get_bytes_per_frame"] = Module["asm"]["aec3_get_bytes_per_frame"]).apply(null, arguments);
+};
+
+/** @type {function(...*):?} */
 var stackSave = Module["stackSave"] = function() {
   return (stackSave = Module["stackSave"] = Module["asm"]["stackSave"]).apply(null, arguments);
 };
