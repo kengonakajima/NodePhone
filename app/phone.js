@@ -14,28 +14,33 @@ const {OpusEncoder}=require("@discordjs/opus");
 const {
   aec3Wrapper,
   getVolumeBar,
-  FREQ,
-  SAMPLES_PER_FRAME,
   createJitterBuffer,
   getMaxValue
 }=require("./util.js");
+
 
 let g_dest_host="172.105.239.246"; // default test server ip
 let g_echoback=false;
 let g_enable_aec3=true;
 
+let g_freq=48000;
 for(let i=2;i<process.argv.length;i++) {
   const arg=process.argv[i];
   if(arg.indexOf("--")==0) {
     if(arg.indexOf("echoback")>0) g_echoback=true;
     else if(arg.indexOf("disable_aec")>0) g_enable_aec3=false;
+    else if(arg.indexOf("freq=16")>0) g_freq=16000;
+    else if(arg.indexOf("freq=32")>0) g_freq=32000;
+    else if(arg.indexOf("freq=48")>0) g_freq=48000;
   } else {
     g_dest_host=arg;
   }  
 }
 
+aec3Wrapper.setFrequency(g_freq);
 
-const encoder=new OpusEncoder(FREQ,1); // 1 ch: monoral
+
+const encoder=new OpusEncoder(g_freq,1); // 1 ch: monoral
 
 
 ///////////
@@ -45,7 +50,7 @@ const g_rec=[]; // lpcm16
 const g_ref=[]; 
 recorder
   .record({
-    sampleRate: FREQ, // マイクデバイスのサンプリングレートを指定
+    sampleRate: g_freq, // マイクデバイスのサンプリングレートを指定
     channels: 1,  // チャンネル数を指定(モノラル)              
     recordProgram: 'rec', // 録音用のバックエンドプログラム名を指定
   })
@@ -96,7 +101,7 @@ player._read = function(n) {
 const spk=new Speaker({ 
   channels: 1, // チャンネル数は1(モノラル)
   bitDepth: 16, // サンプリングデータのビット数は16 (デフォルトはリトルエンディアン)
-  sampleRate: FREQ, // サンプリングレート(Hz)
+  sampleRate: g_freq, // サンプリングレート(Hz)
 });
 
 player.pipe(spk); 
@@ -112,19 +117,19 @@ function processAudio() {
     return;
   }
 
-  let frameNum=Math.floor(g_rec.length/SAMPLES_PER_FRAME);
+  let frameNum=Math.floor(g_rec.length/aec3Wrapper.samples_per_frame);
   const st=new Date().getTime();
   for(let fi=0;fi<frameNum;fi++) {
 
-    const processedFrame=new Int16Array(SAMPLES_PER_FRAME);
+    const processedFrame=new Int16Array(aec3Wrapper.samples_per_frame);
     if(g_enable_aec3) {
       // マイクから入力した音をキャンセラーに入れる
-      const recFrame=new Int16Array(SAMPLES_PER_FRAME);
+      const recFrame=new Int16Array(aec3Wrapper.samples_per_frame);
       for(let i in recFrame) recFrame[i]=g_rec.shift();
       aec3Wrapper.update_rec_frame_wrapped(recFrame);
 
       // 以前再生した音をキャンセラーに入れる    
-      const refFrame=new Int16Array(SAMPLES_PER_FRAME);
+      const refFrame=new Int16Array(aec3Wrapper.samples_per_frame);
       for(let i in refFrame) refFrame[i]=g_ref.shift();
       aec3Wrapper.update_ref_frame_wrapped(refFrame);
       
@@ -142,13 +147,13 @@ function processAudio() {
     g_cl.sendEncodedData(encoded,maxVol);
     
     // ネットワークから受信した音をミキシングする
-    const mixedFrame=new Int16Array(SAMPLES_PER_FRAME);
+    const mixedFrame=new Int16Array(aec3Wrapper.samples_per_frame);
     for(let j in mixedFrame) mixedFrame[j]=0;
 
     for(let i in g_recvbufs) {
       const rb=g_recvbufs[i];
       if(rb.needJitter) continue;
-      for(let j=0;j<SAMPLES_PER_FRAME;j++) {
+      for(let j=0;j<aec3Wrapper.samples_per_frame;j++) {
         mixedFrame[j]+=rb.shift();
       }      
     }

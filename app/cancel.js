@@ -8,9 +8,9 @@ const {
   getVolumeBar,
 }=require("./util.js");
 
-let freq=48000;
-if(process.argv[2]) freq=parseInt(process.argv[2]); // 起動時の引数で周波数を与える
-aec3Wrapper.setFrequency(freq);
+let g_freq=48000;
+if(process.argv[2]) g_freq=parseInt(process.argv[2]); // 起動時の引数で周波数を与える
+aec3Wrapper.setFrequency(g_freq);
 
 
 ///////////
@@ -21,7 +21,7 @@ let g_enh=0;
 
 recorder
   .record({
-    sampleRate: freq, // マイクデバイスのサンプリングレートを指定
+    sampleRate: g_freq, // マイクデバイスのサンプリングレートを指定
     channels: 1,  // チャンネル数を指定(モノラル)              
     recordProgram: 'rec', // 録音用のバックエンドプログラム名を指定
   })
@@ -99,7 +99,7 @@ player._read = function(n) { // Speakerモジュールで新しいサンプル�
 const spk=new Speaker({ 
   channels: 1, // チャンネル数は1(モノラル)
   bitDepth: 16, // サンプリングデータのビット数は16 (デフォルトはリトルエンディアン)
-  sampleRate: freq, // サンプリングレート(Hz)
+  sampleRate: g_freq, // サンプリングレート(Hz)
 });
 
 player.pipe(spk); 
