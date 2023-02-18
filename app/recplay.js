@@ -35,24 +35,19 @@ const Readable=require("stream").Readable;
 const Speaker=require("speaker");
 
 const readable=new Readable(); //
-readable.accumulating=true;
 readable._read = function(n) { // Speakerモジュールで新しいサンプルデータが必要になったら呼び出されるコールバック関数 n:バイト数
   var sampleNum = n/2; // サンプルデータの数を計算する。16ビットPCMなのでnを2バイトで割る
   var u8ary = new Uint8Array(n); // 出力用データの配列
   var dv=new DataView(u8ary.buffer); // 16ビットリトルエンディアン整数の出力用
-  if(this.accumulating && g_samples.length>9600) this.accumulating=false; // 固定長のジッタバッファ (200ms, 9600サンプル)
-  if(this.accumulating) {
-    console.log("accumulating samples!"); // ジッタバッファにサンプルを貯めている最中    
-    for(var i=0;i<sampleNum;i++) dv.setInt16(i*2,0,true); // 貯めてる最中なので無音を再生
-  } else {    
-    // バッファにあるデータを再生用配列に転送する
-    g_play_max_sample=0;
-    for(var i=0;i<sampleNum;i++) { // 必要なサンプリングデータの数だけループさせる
-      const sample=g_samples.shift();
-      dv.setInt16(i*2,sample,true);
-      if(sample>g_play_max_sample) g_play_max_sample=sample; // ついでに、最大音量を記録
-    }
+
+  // バッファにあるデータを再生用配列に転送する
+  g_play_max_sample=0;
+  for(var i=0;i<sampleNum;i++) { // 必要なサンプリングデータの数だけループさせる
+    const sample=g_samples.shift();
+    dv.setInt16(i*2,sample,true);
+    if(sample>g_play_max_sample) g_play_max_sample=sample; // ついでに、最大音量を記録
   }
+
   this.push(u8ary); // 最終的な値を出力
 }
 
