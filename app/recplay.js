@@ -34,8 +34,8 @@ recorder
 const Readable=require("stream").Readable; 
 const Speaker=require("speaker");
 
-const sine=new Readable(); // 
-sine._read = function(n) { // Speakerモジュールで新しいサンプルデータが必要になったら呼び出されるコールバック関数 n:バイト数
+const readable=new Readable(); // 
+readable._read = function(n) { // Speakerモジュールで新しいサンプルデータが必要になったら呼び出されるコールバック関数 n:バイト数
   var sampleNum = n/2; // サンプルデータの数を計算する。16ビットPCMなのでnを2バイトで割る
   var u8ary = new Uint8Array(n); // 出力用データの配列
   var dv=new DataView(u8ary.buffer); // 16ビットリトルエンディアン整数の出力用
@@ -61,7 +61,7 @@ const spk=new Speaker({
     sampleRate: 48000, // サンプリングレート(Hz)
 });
 
-sine.pipe(spk); 
+readable.pipe(spk); 
 
 setInterval(function() {
   console.log("rec:",getVolumeBar(g_rec_max_sample),
