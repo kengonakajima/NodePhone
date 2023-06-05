@@ -52,9 +52,9 @@ readable._read = function(n) { // Speakerモジュールで新しいサンプル
 }
 
 const spk=new Speaker({ 
-    channels: 1, // チャンネル数は1(モノラル)
-    bitDepth: 16, // サンプリングデータのビット数は16 (デフォルトはリトルエンディアン)
-    sampleRate: 48000, // サンプリングレート(Hz)
+  channels: 1, // チャンネル数は1(モノラル)
+  bitDepth: 16, // サンプリングデータのビット数は16 (デフォルトはリトルエンディアン)
+  sampleRate: 48000, // サンプリングレート(Hz)
 });
 
 readable.pipe(spk); 
