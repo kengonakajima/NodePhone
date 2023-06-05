@@ -46,3 +46,4 @@ wsv.on('connection', function connection(co) {
   });
 });
 
+console.log("server started",wsv.address());
