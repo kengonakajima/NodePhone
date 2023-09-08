@@ -11,7 +11,7 @@ aec3.onRuntimeInitialized = () => {
   aec3Wrapper.get_metrics_delay_ms=aec3.cwrap("aec3_get_metrics_delay_ms","number",[]);
   aec3Wrapper.get_voice_probability=aec3.cwrap("aec3_get_voice_probability",[]);
   aec3Wrapper.notify_key_pressed=aec3.cwrap("aec3_notify_key_pressed",["number"]);
-  aec3Wrapper.update_ref_frame=aec3.cwrap("aec3_update_ref_frame","void",["number","number"]);
+  aec3Wrapper._update_ref_frame=aec3.cwrap("aec3_update_ref_frame","void",["number","number"]);
   aec3Wrapper.ensureWorkmem = function() {
     if(this.workmem)return;
     assert(this.freq>0);
@@ -19,37 +19,36 @@ aec3.onRuntimeInitialized = () => {
     this.workmem = aec3._malloc(this.samples_per_frame*2);
     return this.workmem;
   }
-  aec3Wrapper.update_ref_frame_wrapped = function(i16ary) {
+  aec3Wrapper.update_ref_frame = function(i16ary) {
     if(!this.initialized) {
       console.log("aec3 not init");
       return;
     }
     this.ensureWorkmem();
     aec3.HEAP16.set(i16ary, this.workmem/Int16Array.BYTES_PER_ELEMENT);
-    this.update_ref_frame(this.workmem,this.samples_per_frame);
+    this._update_ref_frame(this.workmem,this.samples_per_frame);
   }
-  aec3Wrapper.update_rec_frame=aec3.cwrap("aec3_update_rec_frame","void",["number","number"]);  
-  aec3Wrapper.update_rec_frame_wrapped = function(i16ary) {
+  aec3Wrapper._update_rec_frame=aec3.cwrap("aec3_update_rec_frame","void",["number","number"]);  
+  aec3Wrapper.update_rec_frame = function(i16ary) {
     if(!this.initialized) {
       console.log("aec3 not init");
       return;
     }    
     aec3.HEAP16.set(i16ary, this.workmem/2);
-    this.update_rec_frame(this.workmem,this.samples_per_frame);
+    this._update_rec_frame(this.workmem,this.samples_per_frame);
   }
-  aec3Wrapper.process=aec3.cwrap("aec3_process","void",["number","number","number","number"]);  
-  aec3Wrapper.process_wrapped = function(ms,i16ary,ns) {
+  aec3Wrapper._process=aec3.cwrap("aec3_process","void",["number","number","number","number"]);  
+  aec3Wrapper.process = function(ms,i16ary,ns) {
     if(!this.initialized) {
       console.log("aec3 not init");
       return;
     }    
     aec3.HEAP16.set(i16ary, this.workmem/2);
-    this.process(ms,this.workmem,this.samples_per_frame,ns);
+    this._process(ms,this.workmem,this.samples_per_frame,ns);
     const data=aec3.HEAP16.subarray(this.workmem/2,this.workmem/2+this.samples_per_frame);
     for(let i=0;i<this.samples_per_frame;i++)i16ary[i]=data[i];
   }
   aec3Wrapper.debug_print();
-  console.log("KKK",aec3Wrapper.freq);
   assert(aec3Wrapper.freq==16000 || aec3Wrapper.freq==32000 || aec3Wrapper.freq==48000);
   aec3Wrapper.init(4,0,1,aec3Wrapper.freq); // NS level 4, no loopback, vad=on
   aec3Wrapper.initialized=true;  

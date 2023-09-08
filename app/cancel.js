@@ -58,15 +58,15 @@ player._read = function(n) { // Speakerモジュールで新しいサンプル�
       for(let i=0;i<aec3Wrapper.samples_per_frame;i++) {
         rec[i]=g_samples.shift();
       }
-      aec3Wrapper.update_rec_frame_wrapped(rec);
+      aec3Wrapper.update_rec_frame(rec);
       const ref=new Int16Array(aec3Wrapper.samples_per_frame);
       for(let i=0;i<aec3Wrapper.samples_per_frame;i++) {
         ref[i]=this.ref.shift();
       }
-      aec3Wrapper.update_ref_frame_wrapped(ref);
+      aec3Wrapper.update_ref_frame(ref);
       const processed=new Int16Array(aec3Wrapper.samples_per_frame);
       for(let i=0;i<aec3Wrapper.samples_per_frame;i++) processed[i]=123;
-      aec3Wrapper.process_wrapped(80,processed,1);
+      aec3Wrapper.process(80,processed,1);
       g_play_max_sample=0;
       for(let i=0;i<aec3Wrapper.samples_per_frame;i++) {
         const sample=processed[i];
