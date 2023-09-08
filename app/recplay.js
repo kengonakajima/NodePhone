@@ -48,7 +48,7 @@ readable._read = function(n) { // Speakerモジュールで新しいサンプル
     if(sample>g_play_max_sample) g_play_max_sample=sample; // ついでに、最大音量を記録
   }
 
-  this.push(u8ary); // 最終的な値を出力
+  this.push(u8ary); // スピーカーに向けて出力
 }
 
 const spk=new Speaker({ 
