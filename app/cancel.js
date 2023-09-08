@@ -48,13 +48,13 @@ const player=new Readable();
 player.ref=[]; // 再生バッファ
 player._read = function(n) { // Speakerモジュールで新しいサンプルデータが必要になったら呼び出されるコールバック関数 n:バイト数
   if(aec3Wrapper.initialized && g_samples.length>=aec3Wrapper.samples_per_frame ) {
-    let loopNum=Math.floor(g_samples.length/aec3Wrapper.samples_per_frame);
-    if(loopNum>10) loopNum=10;
-    const toplay = new Uint8Array(aec3Wrapper.samples_per_frame*2*loopNum);
+    let frameNum=Math.floor(g_samples.length/aec3Wrapper.samples_per_frame);
+    if(frameNum>10) frameNum=10;
+    const toplay = new Uint8Array(aec3Wrapper.samples_per_frame*2*frameNum);
     const dv=new DataView(toplay.buffer);
     const rec=new Int16Array(aec3Wrapper.samples_per_frame);
     const st=new Date().getTime();
-    for(let j=0;j<loopNum;j++) {      
+    for(let j=0;j<frameNum;j++) {      
       for(let i=0;i<aec3Wrapper.samples_per_frame;i++) {
         rec[i]=g_samples.shift();
       }
