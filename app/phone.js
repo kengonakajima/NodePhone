@@ -126,15 +126,15 @@ function processAudio() {
       // マイクから入力した音をキャンセラーに入れる
       const recFrame=new Int16Array(aec3Wrapper.samples_per_frame);
       for(let i in recFrame) recFrame[i]=g_rec.shift();
-      aec3Wrapper.update_rec_frame_wrapped(recFrame);
+      aec3Wrapper.update_rec_frame(recFrame);
 
       // 以前再生した音をキャンセラーに入れる    
       const refFrame=new Int16Array(aec3Wrapper.samples_per_frame);
       for(let i in refFrame) refFrame[i]=g_ref.shift();
-      aec3Wrapper.update_ref_frame_wrapped(refFrame);
+      aec3Wrapper.update_ref_frame(refFrame);
       
       // エコーキャンセラーを実行
-      aec3Wrapper.process_wrapped(80,processedFrame,1); // 1: use NS
+      aec3Wrapper.process(80,processedFrame,1); // 1: use NS
     } else {
       // エコーキャンセラーを使わない場合は、マイクの音をそのまま出力用バッファに転送
       for(let i in processedFrame) processedFrame[i]=g_rec.shift();
