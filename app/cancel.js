@@ -47,7 +47,7 @@ const Speaker=require("speaker");
 const player=new Readable();
 player.ref=[]; // 再生バッファ
 player._read = function(n) { // Speakerモジュールで新しいサンプルデータが必要になったら呼び出されるコールバック関数 n:バイト数
-  if(aec3Wrapper.initialized && g_samples.length>aec3Wrapper.samples_per_frame ) {
+  if(aec3Wrapper.initialized && g_samples.length>=aec3Wrapper.samples_per_frame ) {
     let loopNum=Math.floor(g_samples.length/aec3Wrapper.samples_per_frame);
     if(loopNum>10) loopNum=10;
     const toplay = new Uint8Array(aec3Wrapper.samples_per_frame*2*loopNum);
