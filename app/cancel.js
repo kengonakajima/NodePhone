@@ -52,9 +52,9 @@ player._read = function(n) { // Speakerモジュールで新しいサンプル�
     if(frameNum>10) frameNum=10;
     const toplay = new Uint8Array(aec3Wrapper.samples_per_frame*2*frameNum);
     const dv=new DataView(toplay.buffer);
-    const rec=new Int16Array(aec3Wrapper.samples_per_frame);
     const st=new Date().getTime();
     for(let j=0;j<frameNum;j++) {      
+      const rec=new Int16Array(aec3Wrapper.samples_per_frame);
       for(let i=0;i<aec3Wrapper.samples_per_frame;i++) {
         rec[i]=g_samples.shift();
       }
