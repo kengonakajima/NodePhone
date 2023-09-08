@@ -45,9 +45,9 @@ const Readable=require("stream").Readable;
 const Speaker=require("speaker");
 
 const player=new Readable();
-player.ref=[];
+player.ref=[]; // 再生バッファ
 player._read = function(n) { // Speakerモジュールで新しいサンプルデータが必要になったら呼び出されるコールバック関数 n:バイト数
-  if(g_samples.length>=9600) {
+  if(g_samples.length>0 && aec3Wrapper.initialized) {
     let loopNum=Math.floor(g_samples.length/aec3Wrapper.samples_per_frame);
     if(loopNum>10) loopNum=10;
     const toplay = new Uint8Array(aec3Wrapper.samples_per_frame*2*loopNum);
@@ -58,41 +58,38 @@ player._read = function(n) { // Speakerモジュールで新しいサンプル�
       for(let i=0;i<aec3Wrapper.samples_per_frame;i++) {
         rec[i]=g_samples.shift();
       }
-      if(aec3Wrapper.initialized) {
-        aec3Wrapper.update_rec_frame_wrapped(rec);
-        const ref=new Int16Array(aec3Wrapper.samples_per_frame);
-        for(let i=0;i<aec3Wrapper.samples_per_frame;i++) {
-          ref[i]=this.ref.shift();
-        }
-        aec3Wrapper.update_ref_frame_wrapped(ref);
-        const processed=new Int16Array(aec3Wrapper.samples_per_frame);
-        for(let i=0;i<aec3Wrapper.samples_per_frame;i++) processed[i]=123;
-        aec3Wrapper.process_wrapped(80,processed,1);
-        g_play_max_sample=0;
-        for(let i=0;i<aec3Wrapper.samples_per_frame;i++) {
-          const sample=processed[i];
-          dv.setInt16((j*aec3Wrapper.samples_per_frame+i)*2,sample,true);
-          this.ref.push(sample);
-          if(sample>g_play_max_sample)g_play_max_sample=sample;
-        }
-      } else {
-        console.log("aec3 is not initialized yet");
+      aec3Wrapper.update_rec_frame_wrapped(rec);
+      const ref=new Int16Array(aec3Wrapper.samples_per_frame);
+      for(let i=0;i<aec3Wrapper.samples_per_frame;i++) {
+        ref[i]=this.ref.shift();
       }
-    }
-    const et=new Date().getTime();
-    g_enh=aec3Wrapper.get_metrics_echo_return_loss_enhancement();
-    this.push(toplay);
+      aec3Wrapper.update_ref_frame_wrapped(ref);
+      const processed=new Int16Array(aec3Wrapper.samples_per_frame);
+      for(let i=0;i<aec3Wrapper.samples_per_frame;i++) processed[i]=123;
+      aec3Wrapper.process_wrapped(80,processed,1);
+      g_play_max_sample=0;
+      for(let i=0;i<aec3Wrapper.samples_per_frame;i++) {
+        const sample=processed[i];
+        dv.setInt16((j*aec3Wrapper.samples_per_frame+i)*2,sample,true);
+        this.ref.push(sample);
+        if(sample>g_play_max_sample)g_play_max_sample=sample;
+      }
+      const et=new Date().getTime();
+      g_enh=aec3Wrapper.get_metrics_echo_return_loss_enhancement();
+    }    
+    this.push(toplay); // スピーカーに向けて出力
   } else {
-    console.log("need more samples!");
+    // サンプル数がjitterに満たない場合は、無音を再生する
+    console.log("need more samples!"); 
     const sampleNum=n/2;
     const toplay = new Uint8Array(n);
     const dv=new DataView(toplay.buffer);
     for(let i=0;i<sampleNum;i++) {
-      const sample=0;
+      const sample=0; // すべてのサンプルを0にすれば無音になる
       dv.setInt16(i*2,sample,true);
       this.ref.push(sample);
     }
-    this.push(toplay);
+    this.push(toplay); // スピーカーに向けて出力
   }
 }
 
