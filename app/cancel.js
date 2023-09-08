@@ -65,7 +65,6 @@ player._read = function(n) { // Speakerモジュールで新しいサンプル�
       }
       aec3Wrapper.update_ref_frame(ref);
       const processed=new Int16Array(aec3Wrapper.samples_per_frame);
-      for(let i=0;i<aec3Wrapper.samples_per_frame;i++) processed[i]=123;
       aec3Wrapper.process(80,processed,1);
       g_play_max_sample=0;
       for(let i=0;i<aec3Wrapper.samples_per_frame;i++) {
