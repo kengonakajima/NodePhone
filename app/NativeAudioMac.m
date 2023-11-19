@@ -1,11 +1,3 @@
-//
-//  GameViewController.m
-//  MacMicTest
-//
-//  Created by ringo on 2023/09/21.
-//
-//
-//
 // macOSでオーディオデバイスを使うためのnpmにはspeakerやsox,node-record-lcpm16などがあるが、
 // Intel環境を必要とするとか、特定のNodeバージョンで動かない問題があったので、
 // C言語で独自に実装して、nodeのFFIから使うことにした。

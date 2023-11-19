@@ -1,1 +1,4 @@
 node_modules
+NativeAudioWin.exp
+NativeAudioWin.lib
+NativeAudioWin.obj
