@@ -17,11 +17,6 @@ const ShortArray = ArrayType(short);
 // void pushSamplesForPlay(short *samples, int num) 
 
 
-const hogeNative = ffi.Library('./hoge.dylib', {
-  'add': [int, [int, int]],
-  'print_shorts': ['void',[ShortArray,int]]
-});
-console.log("hoge ok");
 const macNative = ffi.Library('./NativeAudioMac.dylib', {
   'initSampleBuffers': ['void', []],
   'startMic': ['void', []],
@@ -42,6 +37,7 @@ setInterval(function() {
     const sample=macNative.getRecordedSample(i);
     samples.push(sample);
   }
+//  シフトせんならんのちゃう
   console.log("recnum:",recnum,"l:",samples.length);
   const sa = new ShortArray(samples);
   macNative.pushSamplesForPlay(sa,sa.length);
