@@ -4,8 +4,8 @@
 
 
 
-#import <Foundation/Foundation.h>
-#import <AudioToolbox/AudioToolbox.h>
+#include <Foundation/Foundation.h>
+#include <AudioToolbox/AudioToolbox.h>
 
 #define kNumberBuffers 3
 
@@ -42,7 +42,6 @@ static int shiftSamples(SampleBuffer *buf, short *output, int num) {
     // output
     if(output) for(int i=0;i<to_output;i++) output[i]=buf->samples[i];
     // shift
-    int to_shift=buf->used-to_output;
     for(int i=to_output;i<buf->used;i++) buf->samples[i-to_output]=buf->samples[i];
     buf->used-=to_output;
     //fprintf(stderr,"shiftSamples: buf used: %d\n",buf->used);
@@ -68,7 +67,15 @@ short getRecordedSample(int index) {
 void pushSamplesForPlay(short *samples, int num) {
     pushSamples(g_playbuf,samples,num);
 }
-
+int getRecordedSamples(short *samples_out, int maxnum) {
+    int to_copy=maxnum;
+    if(to_copy>g_recbuf->used) to_copy=g_recbuf->used;
+    for(int i=0;i<to_copy;i++) samples_out[i]=g_recbuf->samples[i];
+    return to_copy;
+}
+void discardRecordedSamples(int num) {
+    shiftSamples(g_recbuf,NULL,num);
+}
 /*--------*/
 
 // AudioQueueRefとその他の情報を格納
@@ -87,14 +94,9 @@ static void HandleInputBuffer(
     UInt32 inNumPackets,
     const AudioStreamPacketDescription *inPacketDesc
 ) {
-    RecordState *recordState = (RecordState *)inUserData;
     // inBufferには録音データが入っているので、ここで処理を行う
     if (inNumPackets > 0) {
         short *audioData = (short *)inBuffer->mAudioData;
-        int tot=0;
-        for (int i = 0; i < 5 && i < inNumPackets; i++) {
-            tot+=audioData[i];
-        }
         pushSamples(g_recbuf,audioData,inNumPackets);
         if(g_echoback) pushSamples(g_playbuf,audioData,inNumPackets);
     }
@@ -106,7 +108,7 @@ static void HandleInputBuffer(
     }
 }
 
-extern int startMic(void);
+
 
 int startMic() {
     @autoreleasepool {
@@ -123,17 +125,14 @@ int startMic() {
         recordState.dataFormat.mChannelsPerFrame = 1;
         recordState.dataFormat.mBitsPerChannel = 16;
 
-
         // オーディオキューの作成
         OSStatus st=AudioQueueNewInput(&recordState.dataFormat, HandleInputBuffer, &recordState, NULL, kCFRunLoopCommonModes, 0, &recordState.queue);
         if(st!=noErr) return st;
-
         // バッファの確保とエンキュー
         for (int i = 0; i < kNumberBuffers; ++i) {
             AudioQueueAllocateBuffer(recordState.queue, 4096, &recordState.buffers[i]);
             AudioQueueEnqueueBuffer(recordState.queue, recordState.buffers[i], 0, NULL);
         }
-
         // 録音開始
         st=AudioQueueStart(recordState.queue, NULL);
         if(st!=noErr) return st;
@@ -202,11 +201,11 @@ static OSStatus RenderCallback(void *inRefCon,
 {
     static short tmp[256];
     int n=256;
-    int shifted=shiftSamples(g_playbuf,tmp,n);
+    unsigned int shifted=shiftSamples(g_playbuf,tmp,n);
     //printf("render inNumberFrames:%d shifted:%d tmp0:%d\n",inNumberFrames,shifted,tmp[0]);
       
     SInt16 *outFrames = (SInt16*)(ioData->mBuffers->mData);
-    for(int i=0;i<inNumberFrames;i++) {
+    for(unsigned int i=0;i<inNumberFrames;i++) {
         short sample=0;
         if(i<shifted)sample=tmp[i];
         outFrames[i]=sample;
@@ -215,7 +214,6 @@ static OSStatus RenderCallback(void *inRefCon,
 }
 
 int startSpeaker() {
-
     AudioComponentInstance audioUnit;
     AudioComponentDescription desc;
 
