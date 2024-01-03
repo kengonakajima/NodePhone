@@ -32,6 +32,11 @@ void NativeAudio_startSpeaker(const FunctionCallbackInfo<Value>& args) {
     Isolate* isolate = args.GetIsolate();
     args.GetReturnValue().Set(Integer::New(isolate, r));
 }
+void NativeAudio_getPlayBufferUsed(const FunctionCallbackInfo<Value>& args) {
+    int r=getPlayBufferUsed();
+    Isolate* isolate = args.GetIsolate();
+    args.GetReturnValue().Set(Integer::New(isolate, r));    
+}
 void NativeAudio_pushSamplesForPlay(const FunctionCallbackInfo<Value>& args) {
     Isolate* isolate = args.GetIsolate();
     if (args.Length() < 1 || !args[0]->IsInt16Array()) {
@@ -80,7 +85,8 @@ void Initialize(Local<Object> exports) {
     NODE_SET_METHOD(exports, "startSpeaker", NativeAudio_startSpeaker);
     NODE_SET_METHOD(exports, "pushSamplesForPlay", NativeAudio_pushSamplesForPlay);
     NODE_SET_METHOD(exports, "getRecordedSamples", NativeAudio_getRecordedSamples);
-    NODE_SET_METHOD(exports, "discardRecordedSamples", NativeAudio_discardRecordedSamples);            
+    NODE_SET_METHOD(exports, "discardRecordedSamples", NativeAudio_discardRecordedSamples);
+    NODE_SET_METHOD(exports, "getPlayBufferUsed", NativeAudio_getPlayBufferUsed);
     
 }
 

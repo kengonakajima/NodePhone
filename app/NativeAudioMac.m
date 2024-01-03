@@ -67,6 +67,9 @@ short getRecordedSample(int index) {
 void pushSamplesForPlay(short *samples, int num) {
     pushSamples(g_playbuf,samples,num);
 }
+int getPlayBufferUsed() {
+    return g_playbuf->used;
+}
 int getRecordedSamples(short *samples_out, int maxnum) {
     int to_copy=maxnum;
     if(to_copy>g_recbuf->used) to_copy=g_recbuf->used;
