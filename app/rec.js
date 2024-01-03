@@ -1,18 +1,24 @@
-const recorder = require('node-record-lpcm16'); // nodeモジュールを読み込む
+const addon = require('./build/Release/NativeAudio.node'); // addonを読み込む
 
-recorder
-    .record({
-        sampleRate: 48000, // マイクデバイスのサンプリングレートを指定
-        channels: 1,  // チャンネル数を指定(モノラル)              
-        recordProgram: 'rec', // 録音用のバックエンドプログラム名を指定
-    })
-    .stream()
-    .on('error', console.error) // エラーが起きたときにログを出力する
-    .on('data', function(data) { // マイクからデータを受信する無名コールバック関数
-        const vol = Math.abs(data.readInt16LE());  // 配列の先頭のサンプリングデータをひとつ読み込み、音量を得る
-        const ntimes = vol / 512; // 音量が0~32767の値で得られるので512で割る(0~63)
-        const bar = "*".repeat(ntimes); // アスタリスク文字を、音量に応じて0~63回繰り返す
-        console.log("mic volume:", bar);
-    });
-console.log('Listening, press Ctrl+C to stop.');
+addon.initSampleBuffers(); // addonの内部バッファを初期化する
+addon.startMic(); // マイクを開始する
+
+// 100ミリ秒に1回繰り返す
+setInterval(()=>{
+  // マイクからのサンプルを読み込む
+  const samples=addon.getRecordedSamples(); 
+  if(samples.length<=0) return; // サンプルがないときは何もせず、無名関数を終了
+  addon.discardRecordedSamples(samples.length); // addonの内部バッファを破棄する
+
+  // samplesに含まれる最大音量を調べる。  samplesの要素は -32768から32767の値を取る。
+  let maxVol=0;
+  for(const sample of samples) {
+    if(sample>maxVol) maxVol=sample;
+  }
+  // 音量を表示する
+  const ntimes = maxVol / 512; // 音量が0~32767の値で得られるので512で割る(0~63)
+  const bar = "*".repeat(ntimes); // アスタリスク文字を、音量に応じて0~63回繰り返す
+  console.log("mic volume:", bar); 
+},100);
+
 
