@@ -1,6 +1,5 @@
 const addon = require('./build/Release/NativeAudio.node');
-
-console.log(addon.initSampleBuffers());
+addon.initSampleBuffers();
 addon.listDevices();
 
 
