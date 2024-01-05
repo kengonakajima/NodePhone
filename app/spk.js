@@ -2,7 +2,7 @@ const addon = require('./build/Release/NativeAudio.node');
 addon.initSampleBuffers();
 addon.startSpeaker();
 
-var t=0;    // 音波を生成する際の時刻カウンター
+let t=0;    // 音波を生成する際の時刻カウンター
 
 // サイン波を生成する。sampleNum: 生成するサンプル数
 function generate(sampleNum) {
@@ -12,8 +12,7 @@ function generate(sampleNum) {
     t += Math.PI/16.0; // 1サンプルごとに時間を進める(2PI=3.14*2=6.28進めると1周期)
     const y=Math.sin(t); // sinの値を求める
     const fsample=y*20000; // 振幅を掛ける    
-    const isample=Math.floor(fsample); // 整数にする
-    outSamples[i]=isample;
+    outSamples[i]=Math.floor(fsample); // 整数にする
   }
   return outSamples;
 }
