@@ -1,5 +1,5 @@
 const addon = require('./build/Release/NativeAudio.node');
-addon.initSampleBuffers();
+addon.initSampleBuffers(32000);
 let r=addon.startMic();
 console.log("startMic ret:",r);
 r=addon.startSpeaker();
