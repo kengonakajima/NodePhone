@@ -4,7 +4,8 @@ addon.initSampleBuffers(freq,freq);
 addon.startMic(); // マイクを開始する
 
 
-const {OpusEncoder}=require("@discordjs/opus");
+//const {OpusEncoder}=require("@discordjs/opus");
+const {OpusEncoder}=require("./opus.node");
 const encoder=new OpusEncoder(48000,1); // 32KHz, monoral
 const g_recorded=[]; // 録音用バッファ
 const enable_dump=true;
@@ -23,6 +24,8 @@ setInterval(()=>{
       for(let i=0;i<unit;i++)array[i]=g_recorded.shift();
       const encoded=encoder.encode(array);
       console.log("encoded:",encoded.length);
+      const decoded=encoder.decode(encoded);
+      console.log("decoded:",decoded);
       encoded_len+=encoded.length;
       if(enable_dump) {
         let s_ary=[];
