@@ -9,13 +9,12 @@ const {
   getVolumeBar,
 }=require("./util.js");
 
-
 aec3Wrapper.setFrequency(freq);
 
-
-///////////
 // 録音
 const g_recSamples=[]; // lpcm16。録音バッファ
+const g_refSamples=[]; // lpcm16 再生バッファ
+
 let g_recMaxSample=0, g_playMaxSample=0;
 let g_enh=0;
 
@@ -33,11 +32,7 @@ setInterval(()=>{
   }
 },25);
 
-/////////////////////
 // 再生
-
-const g_refSamples=[]; // lpcm16 再生バッファ
-
 setInterval(()=>{
   if(aec3Wrapper.initialized && g_recSamples.length>=aec3Wrapper.samples_per_frame ) {
     let frameNum=Math.floor(g_recSamples.length/aec3Wrapper.samples_per_frame);
@@ -64,23 +59,8 @@ setInterval(()=>{
         if(sample>g_playMaxSample)g_playMaxSample=sample;
       }
       addon.pushSamplesForPlay(play);      
-      g_enh=aec3Wrapper.get_metrics_echo_return_loss_enhancement();
-    }    
-
-  } else {
-/*    
-    // サンプル数がjitterに満たない場合は、無音を再生する
-    console.log("need more samples!"); 
-    const sampleNum=n/2;
-    const toplay = new Uint8Array(n);
-    const dv=new DataView(toplay.buffer);
-    for(let i=0;i<sampleNum;i++) {
-      const sample=0; // すべてのサンプルを0にすれば無音になる
-      dv.setInt16(i*2,sample,true);
-      this.ref.push(sample);
     }
-    this.push(toplay); // スピーカーに向けて出力
-*/    
+    g_enh=aec3Wrapper.get_metrics_echo_return_loss_enhancement();
   }
 },25);
 

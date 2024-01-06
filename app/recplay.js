@@ -1,10 +1,8 @@
 const addon = require('./build/Release/NativeAudio.node');
 const freq=48000;
 addon.initSampleBuffers(freq,freq);
-let r=addon.startMic();
-console.log("startMic ret:",r);
-r=addon.startSpeaker();
-console.log("startSpeaker ret:",r);
+addon.startMic();
+addon.startSpeaker();
 
 // "******      " のような文字列を返す
 function getVolumeBar(l16sample) {
