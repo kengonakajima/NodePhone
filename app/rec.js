@@ -1,6 +1,6 @@
 const addon = require('./build/Release/NativeAudio.node'); // addonを読み込む
 
-addon.initSampleBuffers(); // addonの内部バッファを初期化する
+addon.initSampleBuffers(32000); // addonの内部バッファを初期化する
 addon.startMic(); // マイクを開始する
 
 // 100ミリ秒に1回繰り返す
@@ -18,7 +18,7 @@ setInterval(()=>{
   // 音量を表示する
   const ntimes = maxVol / 512; // 音量が0~32767の値で得られるので512で割る(0~63)
   const bar = "*".repeat(ntimes); // アスタリスク文字を、音量に応じて0~63回繰り返す
-  console.log("mic volume:", bar); 
-},100);
+  console.log("mic volume:", bar, new Date().getTime(), "len:",samples.length); 
+},25);
 
 

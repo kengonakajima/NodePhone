@@ -1,5 +1,6 @@
 const addon = require('./build/Release/NativeAudio.node');
-addon.initSampleBuffers();
+const freq=16000;
+addon.initSampleBuffers(freq);
 addon.startSpeaker();
 
 let t=0;    // 音波を生成する際の時刻カウンター
@@ -8,10 +9,10 @@ let dt=Math.PI/32.0; // サンプルあたりtの増分
 // サイン波を生成する。sampleNum: 生成するサンプル数
 function generate(sampleNum) {
   dt+=Math.PI/80; // tの増分を増やす(音の周波数を少し高くする)
-  const hz=dt*24000/Math.PI/2.0; // 周波数を計算する
-  const nyquist=24000/2; // 再生周波数が24000なので、その半分の12000Hzがナイキスト周波数
+  const hz=dt*freq/Math.PI/2.0; // 周波数を計算する
+  const nyquist=freq/2; // 再生周波数が24000なので、その半分の12000Hzがナイキスト周波数
   const over=(hz>=nyquist);  // ナイキスト周波数を超えているか？
-  console.log("CurrentHz:",Math.floor(hz),"NyquistHz:",nyquist,"Over-nyquist:",over); // 表示
+  console.log("Freq:",freq,"NyquistHz:",nyquist,"CurrentHz:",Math.floor(hz),"Over-nyquist:",over); // 表示
   // 必要なサンプリングデータの数だけループさせる
   const outSamples=new Int16Array(sampleNum);
   for(var i=0;i<sampleNum;i++) { 
@@ -25,11 +26,11 @@ function generate(sampleNum) {
 
 setInterval(()=>{
   const used=addon.getPlayBufferUsed();
-  if(used<8192) {
-    const samples=generate(8192);
+  if(used<4096) {
+    const samples=generate(4096);
     addon.pushSamplesForPlay(samples);
   }
-},100);
+},25);
 
 
 

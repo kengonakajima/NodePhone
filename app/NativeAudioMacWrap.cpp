@@ -13,8 +13,13 @@ const char* hello() {
 }
 
 void NativeAudio_initSampleBuffers(const FunctionCallbackInfo<Value>& args) {
-    initSampleBuffers();
-    Isolate* isolate = args.GetIsolate();
+    Isolate* isolate = args.GetIsolate();    
+    if (args.Length() != 1 || !args[0]->IsNumber()) {
+        isolate->ThrowException(Exception::TypeError(String::NewFromUtf8(isolate, "Expected a single integer argument", NewStringType::kNormal).ToLocalChecked()));
+        return;
+    }
+    int freq = args[0]->NumberValue(isolate->GetCurrentContext()).FromJust();    
+    initSampleBuffers(freq);
     args.GetReturnValue().Set(Undefined(isolate));    
 }
 void NativeAudio_startMic(const FunctionCallbackInfo<Value>& args) {

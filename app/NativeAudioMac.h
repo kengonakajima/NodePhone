@@ -1,6 +1,6 @@
 extern "C"
 {
-    void initSampleBuffers();
+    void initSampleBuffers(int freq);
     int startMic(void);
     int listDevices();
     int startSpeaker();

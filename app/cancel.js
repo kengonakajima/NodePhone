@@ -1,83 +1,77 @@
-const recorder = require('node-record-lpcm16'); // nodeモジュールを読み込む
-const fs=require("fs");
-
-
+const addon = require('./build/Release/NativeAudio.node');
+addon.initSampleBuffers();
+addon.startMic();
+addon.startSpeaker();
 
 const {
   aec3Wrapper,
   getVolumeBar,
 }=require("./util.js");
 
-let g_freq=48000;
-if(process.argv[2]) g_freq=parseInt(process.argv[2]); // 起動時の引数で周波数を与える
-aec3Wrapper.setFrequency(g_freq);
+const FREQ=48000; // aec3の必要条件
+aec3Wrapper.setFrequency(FREQ);
 
 
 ///////////
-// recording
-const g_samples=[]; // lpcm16
-let g_rec_max_sample=0, g_play_max_sample=0;
+// 録音
+const g_recSamples=[]; // lpcm16。録音バッファ
+let g_recMaxSample=0, g_playMaxSample=0;
 let g_enh=0;
 
-recorder
-  .record({
-    sampleRate: g_freq, // マイクデバイスのサンプリングレートを指定
-    channels: 1,  // チャンネル数を指定(モノラル)              
-    recordProgram: 'rec', // 録音用のバックエンドプログラム名を指定
-  })
-  .stream()
-  .on('error', console.error) // エラーが起きたときにログを出力する
-  .on('data', function(data) { // マイクからデータを受信する無名コールバック関数
-    const sampleNum=data.length/2;
-    g_rec_max_sample=0;
-    for(let i=0;i<sampleNum;i++) {
-      const sample=data.readInt16LE(i*2);
-      g_samples.push(sample);
-      if(sample>g_rec_max_sample)g_rec_max_sample=sample;
-    }
-//    console.log("rec:",g_samples.length,"[0]:",g_samples[0]);
-  });
+setInterval(()=>{
+  // マイクからのサンプルを読み込む
+  const samples=addon.getRecordedSamples(); 
+  if(samples.length<=0) return; // サンプルがないときは何もせず、無名関数を終了
+  addon.discardRecordedSamples(samples.length); // addonの内部バッファを破棄する
+
+  // samplesに含まれる最大音量を調べる。  samplesの要素は -32768から32767の値を取る。
+  let maxVol=0;
+  for(const sample of samples) {
+    if(sample>g_recMaxSample) g_recMaxSample=sample;
+    g_recSamples.push(sample); // 録音バッファに記録
+  }
+},25);
 
 /////////////////////
-// playing
+// 再生
 
-const Readable=require("stream").Readable; 
-const Speaker=require("speaker");
+const g_refSamples=[]; // lpcm16 再生バッファ
 
-const player=new Readable();
-player.ref=[]; // 再生バッファ
-player._read = function(n) { // Speakerモジュールで新しいサンプルデータが必要になったら呼び出されるコールバック関数 n:バイト数
-  if(aec3Wrapper.initialized && g_samples.length>=aec3Wrapper.samples_per_frame ) {
-    let frameNum=Math.floor(g_samples.length/aec3Wrapper.samples_per_frame);
+setInterval(()=>{
+  if(aec3Wrapper.initialized && g_recSamples.length>=aec3Wrapper.samples_per_frame ) {
+    let frameNum=Math.floor(g_recSamples.length/aec3Wrapper.samples_per_frame);
     if(frameNum>10) frameNum=10;
-    const toplay = new Uint8Array(aec3Wrapper.samples_per_frame*2*frameNum);
-    const dv=new DataView(toplay.buffer);
-    const st=new Date().getTime();
+    console.log("frameNum:",frameNum);
+    
     for(let j=0;j<frameNum;j++) {      
       const rec=new Int16Array(aec3Wrapper.samples_per_frame);
       for(let i=0;i<aec3Wrapper.samples_per_frame;i++) {
-        rec[i]=g_samples.shift();
+        rec[i]=g_recSamples.shift();
       }
       aec3Wrapper.update_rec_frame(rec);
       const ref=new Int16Array(aec3Wrapper.samples_per_frame);
       for(let i=0;i<aec3Wrapper.samples_per_frame;i++) {
-        ref[i]=this.ref.shift();
+        ref[i]=g_refSamples.shift();
+        play[i]=g_refSamples.shift();
       }
       aec3Wrapper.update_ref_frame(ref);
       const processed=new Int16Array(aec3Wrapper.samples_per_frame);
       aec3Wrapper.process(80,processed,1);
-      g_play_max_sample=0;
+      g_playMaxSample=0;
+      const play=new Int16Array(aec3Wrapper.samples_per_frame);
       for(let i=0;i<aec3Wrapper.samples_per_frame;i++) {
         const sample=processed[i];
         dv.setInt16((j*aec3Wrapper.samples_per_frame+i)*2,sample,true);
-        this.ref.push(sample);
-        if(sample>g_play_max_sample)g_play_max_sample=sample;
+        g_refSamples.push(sample);
+        if(sample>g_playMaxSample)g_playMaxSample=sample;
+        play[i]=sample;
       }
       const et=new Date().getTime();
       g_enh=aec3Wrapper.get_metrics_echo_return_loss_enhancement();
     }    
-    this.push(toplay); // スピーカーに向けて出力
+    addon.pushSamplesForPlay(play);
   } else {
+/*    
     // サンプル数がjitterに満たない場合は、無音を再生する
     console.log("need more samples!"); 
     const sampleNum=n/2;
@@ -89,22 +83,16 @@ player._read = function(n) { // Speakerモジュールで新しいサンプル�
       this.ref.push(sample);
     }
     this.push(toplay); // スピーカーに向けて出力
+*/    
   }
-}
-
-const spk=new Speaker({ 
-  channels: 1, // チャンネル数は1(モノラル)
-  bitDepth: 16, // サンプリングデータのビット数は16 (デフォルトはリトルエンディアン)
-  sampleRate: g_freq, // サンプリングレート(Hz)
-});
-
-player.pipe(spk); 
+},25);
 
 setInterval(function() {
   process.stdout.write('\033c');  
   console.log("rec:",getVolumeBar(g_rec_max_sample));
   console.log("play:",getVolumeBar(g_play_max_sample));
-  console.log("buffer:",g_samples.length);
+  console.log("recSamples:",g_recSamples.length);
+  console.log("refSamples:",g_refSamples.length);  
   console.log("Enhance:",getVolumeBar(g_enh*2000));
   console.log("Voice:",aec3Wrapper.get_voice_probability());
 },50);

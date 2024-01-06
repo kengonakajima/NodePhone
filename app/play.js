@@ -1,5 +1,5 @@
 const addon = require('./build/Release/NativeAudio.node');
-addon.initSampleBuffers();
+addon.initSampleBuffers(32000);
 addon.startSpeaker();
 
 let t=0;    // 音波を生成する際の時刻カウンター
@@ -25,7 +25,7 @@ setInterval(()=>{
     console.log("pushed samples:",samples.length,new Date());
   }
   
-},100);
+},25);
 
 
 

@@ -11,7 +11,10 @@
 
 int g_echoback=0; // これを1 にすると、エコーバックする(ハウリングに注意)
 
+bool g_debug=0; // 1にすると、再生用サンプルをファイルに保存する
 
+
+int g_freq=32000;
 
 /*
  SampleBuffer
@@ -20,7 +23,7 @@ int g_echoback=0; // これを1 にすると、エコーバックする(ハウ�
  */
 typedef struct
 {
-#define SAMPLE_MAX 24000
+#define SAMPLE_MAX 64000
     short samples[SAMPLE_MAX];
     int used;
 } SampleBuffer;
@@ -29,7 +32,8 @@ SampleBuffer *g_recbuf; // 録音したサンプルデータ
 SampleBuffer *g_playbuf; // 再生予定のサンプルデータ
 
 // 必要なSampleBufferを初期化する
-void initSampleBuffers() {
+void initSampleBuffers(int freq) {
+    g_freq=freq;
     g_recbuf = (SampleBuffer*) malloc(sizeof(SampleBuffer));
     memset(g_recbuf,0,sizeof(SampleBuffer));
     g_playbuf = (SampleBuffer*) malloc(sizeof(SampleBuffer));
@@ -66,6 +70,11 @@ short getRecordedSample(int index) {
 // 再生するサンプルを1サンプルだけ送る。
 void pushSamplesForPlay(short *samples, int num) {
     pushSamples(g_playbuf,samples,num);
+    if(g_debug) {
+        FILE *fp=fopen("debug.pcm16le","a+");
+        fwrite(samples,1,num*2,fp);
+        fclose(fp);
+    }
 }
 int getPlayBufferUsed() {
     return g_playbuf->used;
@@ -119,7 +128,7 @@ int startMic() {
         memset(&recordState, 0, sizeof(RecordState));
 
         // オーディオデータフォーマットの設定
-        recordState.dataFormat.mSampleRate = 24000;
+        recordState.dataFormat.mSampleRate = g_freq;
         recordState.dataFormat.mFormatID = kAudioFormatLinearPCM;
         recordState.dataFormat.mFormatFlags = kLinearPCMFormatFlagIsSignedInteger | kLinearPCMFormatFlagIsPacked | kAudioFormatFlagsNativeEndian;
         recordState.dataFormat.mBytesPerPacket = 2;
@@ -133,7 +142,7 @@ int startMic() {
         if(st!=noErr) return st;
         // バッファの確保とエンキュー
         for (int i = 0; i < kNumberBuffers; ++i) {
-            AudioQueueAllocateBuffer(recordState.queue, 4096, &recordState.buffers[i]);
+            AudioQueueAllocateBuffer(recordState.queue, 2048, &recordState.buffers[i]);
             AudioQueueEnqueueBuffer(recordState.queue, recordState.buffers[i], 0, NULL);
         }
         // 録音開始
@@ -202,13 +211,13 @@ static OSStatus RenderCallback(void *inRefCon,
                                UInt32 inNumberFrames,
                                AudioBufferList *ioData)
 {
-    static short tmp[256];
-    int n=256;
+    static short tmp[8192];
+    int n=inNumberFrames;
+    if(n>8192)n=8192;
     unsigned int shifted=shiftSamples(g_playbuf,tmp,n);
-    //printf("render inNumberFrames:%d shifted:%d tmp0:%d\n",inNumberFrames,shifted,tmp[0]);
-      
+    //    printf("render inNumberFrames:%d shifted:%d tmp0:%d n:%d\n",inNumberFrames,shifted,tmp[0],n);
     SInt16 *outFrames = (SInt16*)(ioData->mBuffers->mData);
-    for(unsigned int i=0;i<inNumberFrames;i++) {
+    for(unsigned int i=0;i<n;i++) {
         short sample=0;
         if(i<shifted)sample=tmp[i];
         outFrames[i]=sample;
@@ -232,7 +241,7 @@ int startSpeaker() {
     // チャンネル数を設定
     AudioStreamBasicDescription audioFormat;
     memset(&audioFormat, 0, sizeof(AudioStreamBasicDescription));
-    audioFormat.mSampleRate = 24000;
+    audioFormat.mSampleRate = g_freq;
     audioFormat.mFormatID = kAudioFormatLinearPCM;
     audioFormat.mFormatFlags = kAudioFormatFlagIsSignedInteger | kAudioFormatFlagIsPacked;
     audioFormat.mFramesPerPacket = 1;
@@ -291,15 +300,4 @@ int startSpeaker() {
 */
     return 0;
 }
-
-/*
-    listDevices();
-    checkOutputDevice(2,48000);
-    initSampleBuffers();
-    startMic();
-    startSpeaker();
-*/
-
-
-
 

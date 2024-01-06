@@ -25,5 +25,5 @@ setInterval(()=>{
   console.log("volume:",getVolumeBar(g_maxSample));
   addon.pushSamplesForPlay(samples);
   addon.discardRecordedSamples(samples.length);  
-},100);
+},25);
 
