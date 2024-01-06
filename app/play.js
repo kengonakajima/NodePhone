@@ -1,5 +1,6 @@
 const addon = require('./build/Release/NativeAudio.node');
-addon.initSampleBuffers(32000);
+const freq=48000;
+addon.initSampleBuffers(freq,freq);
 addon.startSpeaker();
 
 let t=0;    // 音波を生成する際の時刻カウンター

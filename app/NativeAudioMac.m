@@ -14,7 +14,8 @@ int g_echoback=0; // これを1 にすると、エコーバックする(ハウ�
 bool g_debug=0; // 1にすると、再生用サンプルをファイルに保存する
 
 
-int g_freq=32000;
+int g_recFreq=32000;
+int g_playFreq=32000;
 
 /*
  SampleBuffer
@@ -32,8 +33,9 @@ SampleBuffer *g_recbuf; // 録音したサンプルデータ
 SampleBuffer *g_playbuf; // 再生予定のサンプルデータ
 
 // 必要なSampleBufferを初期化する
-void initSampleBuffers(int freq) {
-    g_freq=freq;
+void initSampleBuffers(int recFreq,int playFreq) {
+    g_recFreq=recFreq;
+    g_playFreq=playFreq;
     g_recbuf = (SampleBuffer*) malloc(sizeof(SampleBuffer));
     memset(g_recbuf,0,sizeof(SampleBuffer));
     g_playbuf = (SampleBuffer*) malloc(sizeof(SampleBuffer));
@@ -128,7 +130,7 @@ int startMic() {
         memset(&recordState, 0, sizeof(RecordState));
 
         // オーディオデータフォーマットの設定
-        recordState.dataFormat.mSampleRate = g_freq;
+        recordState.dataFormat.mSampleRate = g_recFreq;
         recordState.dataFormat.mFormatID = kAudioFormatLinearPCM;
         recordState.dataFormat.mFormatFlags = kLinearPCMFormatFlagIsSignedInteger | kLinearPCMFormatFlagIsPacked | kAudioFormatFlagsNativeEndian;
         recordState.dataFormat.mBytesPerPacket = 2;
@@ -212,7 +214,7 @@ static OSStatus RenderCallback(void *inRefCon,
                                AudioBufferList *ioData)
 {
     static short tmp[8192];
-    int n=inNumberFrames;
+    unsigned int n=inNumberFrames;
     if(n>8192)n=8192;
     unsigned int shifted=shiftSamples(g_playbuf,tmp,n);
     //    printf("render inNumberFrames:%d shifted:%d tmp0:%d n:%d\n",inNumberFrames,shifted,tmp[0],n);
@@ -241,7 +243,7 @@ int startSpeaker() {
     // チャンネル数を設定
     AudioStreamBasicDescription audioFormat;
     memset(&audioFormat, 0, sizeof(AudioStreamBasicDescription));
-    audioFormat.mSampleRate = g_freq;
+    audioFormat.mSampleRate = g_playFreq;
     audioFormat.mFormatID = kAudioFormatLinearPCM;
     audioFormat.mFormatFlags = kAudioFormatFlagIsSignedInteger | kAudioFormatFlagIsPacked;
     audioFormat.mFramesPerPacket = 1;

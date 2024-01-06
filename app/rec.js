@@ -1,6 +1,6 @@
 const addon = require('./build/Release/NativeAudio.node'); // addonを読み込む
-
-addon.initSampleBuffers(32000); // addonの内部バッファを初期化する
+const freq=48000;
+addon.initSampleBuffers(freq,freq); // addonの内部バッファを初期化する
 addon.startMic(); // マイクを開始する
 
 // 100ミリ秒に1回繰り返す
