@@ -1,6 +1,6 @@
 const addon = require('./build/Release/NativeAudio.node');
-const freq=32000; // aec3の必要条件
-addon.initSampleBuffers(freq);
+const freq=48000; // aec3の必要条件
+addon.initSampleBuffers(freq,freq);
 addon.startMic();
 addon.startSpeaker();
 
