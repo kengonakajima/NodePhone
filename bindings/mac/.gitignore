@@ -1,3 +1,6 @@
 node_modules
 NativeAudioMac.o
 build
+NativeAudioMac.node
+NativeAudioMac.node.arm64
+NativeAudioMac.node.x86_64

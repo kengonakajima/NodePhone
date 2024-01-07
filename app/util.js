@@ -63,7 +63,7 @@ aec3Wrapper.setFrequency = function(freq) {
 // ネイティブオーディオのAPI
 let NativeAudio=null;
 if(process.platform=='darwin') {
-    NativeAudio = require('../bindings/mac/build/Release/NativeAudio.node');
+    NativeAudio = require('./NativeAudioMac.node');
 } else {
   console.log("TODO");
   assert(false);

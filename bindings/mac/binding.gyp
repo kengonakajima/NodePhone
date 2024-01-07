@@ -1,7 +1,7 @@
 {
     "targets": [
         {
-            "target_name": "NativeAudio",
+            "target_name": "NativeAudioMac",
             "sources": [ "NativeAudioMacWrap.cpp", "NativeAudioMac.m" ],
             "conditions": [
                 ["OS=='mac'", {

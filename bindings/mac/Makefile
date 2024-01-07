@@ -2,9 +2,13 @@
 
 
 binding: NativeAudioMac.o
-	node-gyp configure --verbose
-	node-gyp rebuild --verbose
-
+	rm -f NativeAudioMac.node NativeAudioMac.node.arm64 NativeAudioMac.node.x86_64
+	node-gyp clean configure build --verbose --arch=x64
+	mv build/Release/NativeAudioMac.node ./NativeAudioMac.node.x86_64
+	node-gyp clean configure build --verbose --arch=arm64
+	mv build/Release/NativeAudioMac.node ./NativeAudioMac.node.arm64
+	lipo -create -output NativeAudioMac.node NativeAudioMac.node.arm64 NativeAudioMac.node.x86_64
+	cp ./NativeAudioMac.node ../../app/
 
 NativeAudioWin.dll : NativeAudioWin.cpp
 	cl.exe /LD NativeAudioWin.cpp
