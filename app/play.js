@@ -1,7 +1,7 @@
-const addon = require('./build/Release/NativeAudio.node');
+const {NativeAudio} = require('./util.js');
 const freq=48000;
-addon.initSampleBuffers(freq,freq);
-addon.startSpeaker();
+NativeAudio.initSampleBuffers(freq,freq);
+NativeAudio.startSpeaker();
 
 let t=0;    // 音波を生成する際の時刻カウンター
 
@@ -19,10 +19,10 @@ function generate(sampleNum) {
 }
 
 setInterval(()=>{
-  const used=addon.getPlayBufferUsed();
+  const used=NativeAudio.getPlayBufferUsed();
   if(used<4096) {
     const samples=generate(4096);
-    addon.pushSamplesForPlay(samples);
+    NativeAudio.pushSamplesForPlay(samples);
     console.log("pushed samples:",samples.length,new Date());
   }
   

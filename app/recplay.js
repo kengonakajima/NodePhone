@@ -1,8 +1,8 @@
-const addon = require('./build/Release/NativeAudio.node');
+const {NativeAudio} = require('./util.js');
 const freq=48000;
-addon.initSampleBuffers(freq,freq);
-addon.startMic();
-addon.startSpeaker();
+NativeAudio.initSampleBuffers(freq,freq);
+NativeAudio.startMic();
+NativeAudio.startSpeaker();
 
 // "******      " のような文字列を返す
 function getVolumeBar(l16sample) {
@@ -14,7 +14,7 @@ function getVolumeBar(l16sample) {
 
 let g_maxSample=0;
 setInterval(()=>{
-  const samples=addon.getRecordedSamples();
+  const samples=NativeAudio.getRecordedSamples();
   // 最大音量を記録
   g_maxSample=0;
   for(let i=0;i<samples.length;i++) {
@@ -22,7 +22,7 @@ setInterval(()=>{
     if(sample>g_maxSample) g_maxSample=sample; 
   }
   console.log("volume:",getVolumeBar(g_maxSample));
-  addon.pushSamplesForPlay(samples);
-  addon.discardRecordedSamples(samples.length);  
+  NativeAudio.pushSamplesForPlay(samples);
+  NativeAudio.discardRecordedSamples(samples.length);  
 },25);
 

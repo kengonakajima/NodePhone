@@ -1,8 +1,8 @@
-const addon = require('./build/Release/NativeAudio.node');
+const {NativeAudio} = require('./util.js');
 const freq=48000; // aec3の必要条件
-addon.initSampleBuffers(freq,freq);
-addon.startMic();
-addon.startSpeaker();
+NativeAudio.initSampleBuffers(freq,freq);
+NativeAudio.startMic();
+NativeAudio.startSpeaker();
 
 const {
   aec3Wrapper,
@@ -20,9 +20,9 @@ let g_enh=0;
 
 setInterval(()=>{
   // マイクからのサンプルを読み込む
-  const samples=addon.getRecordedSamples(); 
+  const samples=NativeAudio.getRecordedSamples(); 
   if(samples.length<=0) return; // サンプルがないときは何もせず、無名関数を終了
-  addon.discardRecordedSamples(samples.length); // addonの内部バッファを破棄する
+  NativeAudio.discardRecordedSamples(samples.length); // NativeAudioの内部バッファを破棄する
 
   // samplesに含まれる最大音量を調べる。  samplesの要素は -32768から32767の値を取る。
   let maxVol=0;
@@ -58,7 +58,7 @@ setInterval(()=>{
         play[i]=sample;        
         if(sample>g_playMaxSample)g_playMaxSample=sample;
       }
-      addon.pushSamplesForPlay(play);      
+      NativeAudio.pushSamplesForPlay(play);      
     }
     g_enh=aec3Wrapper.get_metrics_echo_return_loss_enhancement();
   }

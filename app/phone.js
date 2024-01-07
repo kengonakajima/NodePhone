@@ -9,8 +9,8 @@
 
 const fs=require("fs");
 const ws=require("ws");
-const {OpusEncoder}=require("@discordjs/opus");
-const addon = require('./build/Release/NativeAudio.node');
+const {OpusEncoder}=require("./opus.node");
+const {NativeAudio} = require('./util.js');
 
 const {
   aec3Wrapper,
@@ -42,9 +42,9 @@ if(g_freq==16000) throw "opus dont support 16kHz";
 
 aec3Wrapper.setFrequency(g_freq);
 
-addon.initSampleBuffers(g_freq,g_freq);
-addon.startMic();
-addon.startSpeaker();
+NativeAudio.initSampleBuffers(g_freq,g_freq);
+NativeAudio.startMic();
+NativeAudio.startSpeaker();
 
 const encoder=new OpusEncoder(g_freq,1); // 1 ch: monoral
 
@@ -57,9 +57,9 @@ let g_recMaxSample=0, g_playMaxSample=0;
 
 setInterval(()=>{
   // マイクからのサンプルを読み込む
-  const samples=addon.getRecordedSamples(); 
+  const samples=NativeAudio.getRecordedSamples(); 
   if(samples.length<=0) return; // サンプルがないときは何もせず、無名関数を終了
-  addon.discardRecordedSamples(samples.length); // addonの内部バッファを破棄する
+  NativeAudio.discardRecordedSamples(samples.length); // NativeAudioの内部バッファを破棄する
 
   // samplesに含まれる最大音量を調べる。  samplesの要素は -32768から32767の値を取る。
   let maxVol=0;
@@ -110,7 +110,7 @@ setInterval(()=>{
           if(mixedFrame[j]>g_playMaxSample)g_playMaxSample=mixedFrame[j];
         }      
       }
-      addon.pushSamplesForPlay(mixedFrame);
+      NativeAudio.pushSamplesForPlay(mixedFrame);
     }
   }
 },25);

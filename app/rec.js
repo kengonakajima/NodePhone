@@ -1,14 +1,14 @@
-const addon = require('./build/Release/NativeAudio.node'); // addonを読み込む
+const {NativeAudio} = require('./util.js');
 const freq=48000;
-addon.initSampleBuffers(freq,freq); // addonの内部バッファを初期化する
-addon.startMic(); // マイクを開始する
+NativeAudio.initSampleBuffers(freq,freq); // NativeAudioの内部バッファを初期化する
+NativeAudio.startMic(); // マイクを開始する
 
 // 100ミリ秒に1回繰り返す
 setInterval(()=>{
   // マイクからのサンプルを読み込む
-  const samples=addon.getRecordedSamples(); 
+  const samples=NativeAudio.getRecordedSamples(); 
   if(samples.length<=0) return; // サンプルがないときは何もせず、無名関数を終了
-  addon.discardRecordedSamples(samples.length); // addonの内部バッファを破棄する
+  NativeAudio.discardRecordedSamples(samples.length); // NativeAudioの内部バッファを破棄する
 
   // samplesに含まれる最大音量を調べる。  samplesの要素は -32768から32767の値を取る。
   let maxVol=0;

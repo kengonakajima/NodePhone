@@ -1,7 +1,7 @@
-const addon = require('./build/Release/NativeAudio.node');
+const {NativeAudio} = require('./util.js');
 const freq=16000; // ナイキスト周波数の影響を体験するため、あえて低いサンプリング周波数を設定する
-addon.initSampleBuffers(freq,freq);
-addon.startSpeaker();
+NativeAudio.initSampleBuffers(freq,freq);
+NativeAudio.startSpeaker();
 
 let t=0;    // 音波を生成する際の時刻カウンター
 let dt=Math.PI/32.0; // サンプルあたりtの増分
@@ -25,10 +25,10 @@ function generate(sampleNum) {
 }
 
 setInterval(()=>{
-  const used=addon.getPlayBufferUsed();
+  const used=NativeAudio.getPlayBufferUsed();
   if(used<4096) {
     const samples=generate(4096);
-    addon.pushSamplesForPlay(samples);
+    NativeAudio.pushSamplesForPlay(samples);
   }
 },25);
 

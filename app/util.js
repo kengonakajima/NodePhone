@@ -2,7 +2,7 @@ const assert = require("assert");
 const aec3 = require('./aec3.js');
 
 
-let aec3Wrapper={ initialized: false};
+let aec3Wrapper={ initialized: false, freq: 32000 };
 aec3.onRuntimeInitialized = () => {
   console.log("aec3.onRuntimeInitialized called");
   aec3Wrapper.init=aec3.cwrap("aec3_init","void",["number","number","number"]);
@@ -60,6 +60,16 @@ aec3Wrapper.setFrequency = function(freq) {
   console.log("aec3Wrapper.setFrequency:",freq);
 }
 
+// ネイティブオーディオのAPI
+let NativeAudio=null;
+if(process.platform=='darwin') {
+    NativeAudio = require('../bindings/mac/build/Release/NativeAudio.node');
+} else {
+  console.log("TODO");
+  assert(false);
+}
+    
+
 
 // "******      " のような文字列を返す
 function getVolumeBar(l16sample) {
@@ -100,7 +110,9 @@ function getMaxValue(ary){
   return maxv;
 }
 
+
 exports.getMaxValue=getMaxValue;
 exports.createJitterBuffer=createJitterBuffer;
 exports.aec3Wrapper = aec3Wrapper;
 exports.getVolumeBar = getVolumeBar;
+exports.NativeAudio = NativeAudio;

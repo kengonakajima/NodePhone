@@ -1,7 +1,7 @@
-const addon = require('./build/Release/NativeAudio.node');
+const {NativeAudio} = require('./util.js');
 const freq=48000;
-addon.initSampleBuffers(freq,freq);
-addon.startMic(); // マイクを開始する
+NativeAudio.initSampleBuffers(freq,freq);
+NativeAudio.startMic(); // マイクを開始する
 
 
 //const {OpusEncoder}=require("@discordjs/opus");
@@ -11,9 +11,9 @@ const g_recorded=[]; // 録音用バッファ
 const enable_dump=true;
 
 setInterval(()=>{
-  const samples=addon.getRecordedSamples(); 
+  const samples=NativeAudio.getRecordedSamples(); 
   if(samples.length<=0) return; // サンプルがないときは何もせず、無名関数を終了
-  addon.discardRecordedSamples(samples.length); // addonの内部バッファを破棄する
+  NativeAudio.discardRecordedSamples(samples.length); // NativeAudioの内部バッファを破棄する
   for(let i=0;i<samples.length;i++) g_recorded.push(samples[i]); // いったん録音用バッファに蓄積
 
   let encoded_len=0;
