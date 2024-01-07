@@ -62,6 +62,9 @@ aec3Wrapper.setFrequency = function(freq) {
 
 // ネイティブオーディオのAPI
 let NativeAudio=null;
+const majorVersion = parseInt(process.version.split('.')[0].substring(1), 10);
+assert(majorVersion>=21); // 添付のモジュールはnode 21でコンパイルされている
+
 if(process.platform=='darwin') {
     NativeAudio = require('./NativeAudioMac.node');
 } else {
