@@ -11,12 +11,6 @@
                             "-framework AudioToolbox"
                         ]
                     },            
-                }],
-                ["OS=='win'", {
-                    "libraries": [ "<!(pwd)/path/to/your/object_file.obj" ]
-                }],
-                ["OS=='linux'", {
-                    "libraries": [ "<!(pwd)/path/to/your/object_file.o" ]
                 }]
             ]
         }
