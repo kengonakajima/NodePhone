@@ -1,6 +1,5 @@
 const {NativeAudio} = require('./util.js');
-const freq=48000;
-NativeAudio.initSampleBuffers(freq,freq);
+NativeAudio.initSampleBuffers(48000,48000);
 NativeAudio.startSpeaker();
 
 let t=0;    // 音波を生成する際の時刻カウンター
