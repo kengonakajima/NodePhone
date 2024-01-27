@@ -4,4 +4,5 @@ NativeAudioWin.lib
 NativeAudioWin.obj
 NativeAudioMac.o
 build
-
+output.wav
+recorded.lpcm16
