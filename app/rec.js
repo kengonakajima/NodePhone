@@ -1,7 +1,9 @@
 const {NativeAudio, getVolumeBar} = require('./util.js');
 const freq=48000;
-NativeAudio.initSampleBuffers(freq,freq); // NativeAudioの内部バッファを初期化する
-NativeAudio.startMic(); // マイクを開始する
+// NativeAudioの内部バッファを初期化する
+NativeAudio.initSampleBuffers(freq,freq); 
+// マイクを開始する
+NativeAudio.startMic(); 
 
 // 25ミリ秒に1回繰り返す
 setInterval(()=>{
@@ -19,7 +21,7 @@ setInterval(()=>{
   }
   // 最大音量を表示する
   const bar = getVolumeBar(maxVol);
-  console.log("mic volume:", bar, new Date().getTime(), "len:",samples.length); 
+  console.log("mic volume:", bar, "len:",samples.length); 
 },25);
 
 
