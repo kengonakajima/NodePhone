@@ -1,9 +1,9 @@
-const {NativeAudio} = require('./util.js');
+const {NativeAudio, getVolumeBar} = require('./util.js');
 const freq=48000;
 NativeAudio.initSampleBuffers(freq,freq); // NativeAudioの内部バッファを初期化する
 NativeAudio.startMic(); // マイクを開始する
 
-// 100ミリ秒に1回繰り返す
+// 25ミリ秒に1回繰り返す
 setInterval(()=>{
   // マイクからのサンプルを読み込む
   const samples=NativeAudio.getRecordedSamples(); 
@@ -16,8 +16,7 @@ setInterval(()=>{
     if(sample>maxVol) maxVol=sample;
   }
   // 音量を表示する
-  const ntimes = maxVol / 512; // 音量が0~32767の値で得られるので512で割る(0~63)
-  const bar = "*".repeat(ntimes); // アスタリスク文字を、音量に応じて0~63回繰り返す
+  const bar = getVolumeBar(maxVol);
   console.log("mic volume:", bar, new Date().getTime(), "len:",samples.length); 
 },25);
 

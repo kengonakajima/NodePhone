@@ -77,8 +77,8 @@ if(process.platform=='darwin') {
 // "******      " のような文字列を返す
 function getVolumeBar(l16sample) {
   const vol=Math.abs(l16sample) || 0;
-  const bar = vol / 512;
-  const space = 64-bar;
+  const bar = vol / 1024;
+  const space = 32-bar;
   return "*".repeat(bar)+" ".repeat(space); 
 }
 
