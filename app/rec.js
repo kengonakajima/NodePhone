@@ -1,7 +1,7 @@
 const {NativeAudio, getVolumeBar} = require('./util.js');
-const freq=48000;
+
 // NativeAudioの内部バッファを初期化する
-NativeAudio.initSampleBuffers(freq,freq); 
+NativeAudio.initSampleBuffers(48000,48000); 
 // マイクを開始する
 NativeAudio.startMic(); 
 
