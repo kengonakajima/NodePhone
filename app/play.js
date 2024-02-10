@@ -18,7 +18,6 @@ setInterval(()=>{
   const samples=new Int16Array(n);
   for(let i=0;i<n;i++) { 
     const y=Math.sin(t); // sinの値を求める
-    console.log(y);
     const sample=y*20000; // 振幅を掛ける    
     samples[i]=Math.floor(sample); // 整数にする
     t += dt; // 1サンプル分の時間を進める
