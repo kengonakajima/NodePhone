@@ -1,15 +1,15 @@
 const {NativeAudio} = require('./util.js');
 // ナイキスト周波数の影響を体験するため、わざと低い周波数を指定する
-const freq=16000; 
+const freq=8000; 
 NativeAudio.initSampleBuffers(freq,freq);
 NativeAudio.startSpeaker();
 
 let t=0;    // 音波を生成する際の時刻カウンター
-let dt=Math.PI/32.0; // サンプルあたりtの増分
+let dt=Math.PI/20.0; // サンプルあたりtの増分
 
 // サイン波を生成する。sampleNum: 生成するサンプル数
 function generate(sampleNum) {
-  dt+=Math.PI/80; // tの増分を増やす(音の周波数を少し高くする)
+  dt+=Math.PI/16; // tの増分を増やす(音の周波数を少し高くする)
   const hz=dt*freq/Math.PI/2.0; // 周波数を計算する
   const nyquist=freq/2; // 再生周波数が24000なので、その半分の12000Hzがナイキスト周波数
   const over=(hz>=nyquist);  // ナイキスト周波数を超えているか？
@@ -29,8 +29,8 @@ setInterval(()=>{
   // 再生用バッファの残り量を調べる
   const used=NativeAudio.getPlayBufferUsed();
   // 残り量が減ったら、次のサンプルを生成する
-  if(used<4096) {
-    const samples=generate(4096);
+  if(used<2048) {
+    const samples=generate(2048);
     NativeAudio.pushSamplesForPlay(samples);
   }
 },25);
