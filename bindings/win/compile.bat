@@ -1,4 +1,3 @@
 
-cl.exe /LD NativeAudioWin.cpp
-
+node-gyp clean configure build --verbose
 

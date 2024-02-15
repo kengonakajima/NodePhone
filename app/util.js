@@ -67,6 +67,8 @@ assert(majorVersion>=21); // 添付のモジュールはnode 21でコンパイ�
 
 if(process.platform=='darwin') {
     NativeAudio = require('./NativeAudioMac.node');
+} else if(process.platform=='win32') {
+    NativeAudio = require('./NativeAudioWin.node');
 } else {
   console.log("TODO");
   assert(false);

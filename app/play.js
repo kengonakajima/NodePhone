@@ -18,15 +18,20 @@ function generate(sampleNum) {
   return outSamples;
 }
 
+//NativeAudio.pushSamplesForPlay(generate(12000)); //ジッタを吸収するため
+
 setInterval(()=>{
   const used=NativeAudio.getPlayBufferUsed();
   if(used<4096) {
     const samples=generate(4096);
     NativeAudio.pushSamplesForPlay(samples);
     console.log("pushed samples:",samples.length,new Date());
-  }
-  
+  }  
 },25);
+
+setInterval(()=>{
+  NativeAudio.update();
+},10);
 
 
 
