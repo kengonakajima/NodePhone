@@ -1,6 +1,6 @@
 // macOSでオーディオデバイスを使うためのnpmにはspeakerやsox,node-record-lcpm16などがあるが、
 // Intel環境を必要とするとか、特定のNodeバージョンで動かない問題があったので、
-// C言語で独自に実装して、nodeのFFIから使うことにした。
+// ObjCで独自に実装して、nodeから使うことにした。
 
 
 
