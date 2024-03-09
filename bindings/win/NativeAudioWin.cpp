@@ -1,9 +1,10 @@
 #include <cstring>
 #include <cstdlib>
 #include <windows.h>
-#include <dsound.h>
 #include <stdio.h>
 #include "NativeAudioWin.h"
+
+#include "portaudio.h"
 
 /*
  SampleBuffer
@@ -12,7 +13,7 @@
  */
 typedef struct
 {
-#define SAMPLE_MAX 16000
+#define SAMPLE_MAX 48000
     short samples[SAMPLE_MAX];
     int used;
 } SampleBuffer;
@@ -33,7 +34,8 @@ void initSampleBuffers(int recFreq,int playFreq) {
     g_playbuf = (SampleBuffer*) malloc(sizeof(SampleBuffer));
     memset(g_playbuf,0,sizeof(SampleBuffer));
 }
-
+static int totShifted=0;
+static int firstTick=0;
 static int shiftSamples(SampleBuffer *buf, short *output, int num) {
     int to_output=num;
     if(to_output>buf->used) to_output=buf->used;
@@ -41,6 +43,11 @@ static int shiftSamples(SampleBuffer *buf, short *output, int num) {
     int to_shift=buf->used-to_output;
     for(int i=to_output;i<buf->used;i++) buf->samples[i-to_output]=buf->samples[i];
     buf->used-=to_output;
+    totShifted+=to_output;
+    int tick=GetTickCount();
+    if(firstTick==0) firstTick=tick;
+    int dt=tick-firstTick;
+    float shiftPerSec=(float)totShifted/(float)dt*1000;
     return to_output;
 }
 static void pushSamples(SampleBuffer *buf,short *append, int num) {
@@ -80,48 +87,82 @@ void discardRecordedSamples(int num) {
 
 ///////////////////
 
-// Direct Sound 特有の処理
+// PortAudio 特有の処理
 
-#pragma comment(lib, "dsound.lib")
-#pragma comment(lib, "dxguid.lib")
 
 #define NUM_CHANNELS 1
 #define BITS_PER_SAMPLE 16
 #define BUFFER_SIZE(hz) (hz * NUM_CHANNELS * BITS_PER_SAMPLE / 8)
 
-LPDIRECTSOUNDCAPTURE8 pDSCapture = NULL;
-LPDIRECTSOUNDCAPTUREBUFFER pDSCaptureBuffer = NULL;
-LPDIRECTSOUND8 pDS = NULL;
-LPDIRECTSOUNDBUFFER pDSBuffer = NULL;
+#define PA_SAMPLE_TYPE  paInt16
+typedef short SAMPLE;
+#define FRAMES_PER_BUFFER   (512)
+typedef unsigned long PaStreamCallbackFlags;
+static PaStream* g_inputStream;
+static PaStream* g_outputStream;
 
+static int recordCallback( const void *inputBuffer, void *outputBuffer,
+                           unsigned long framesPerBuffer,
+                           const PaStreamCallbackTimeInfo* timeInfo,
+                           PaStreamCallbackFlags statusFlags,
+                           void *userData )
+{
+    short recordbuf[FRAMES_PER_BUFFER];
+    const SAMPLE *rptr = (const SAMPLE*)inputBuffer;
+    long framesToCalc = framesPerBuffer;
+    long i;
 
-
+    if( inputBuffer == NULL )
+    {
+        for( i=0; i<framesToCalc; i++ )
+        {
+            recordbuf[i] = 0; 
+        }
+    }
+    else
+    {
+        for( i=0; i<framesToCalc; i++ )
+        {
+            recordbuf[i] = *rptr++;
+        }
+    }
+    pushSamples(g_recbuf,recordbuf,framesToCalc);
+    return 0;
+}
 
 int startMic() {
+    PaError             err = paNoError;
 
-    if (FAILED(DirectSoundCaptureCreate8(NULL, &pDSCapture, NULL))) {
+    err = Pa_Initialize();
+    if (err != paNoError) {
         return -1;
     }
+    PaStreamParameters  inputParameters;
 
-    WAVEFORMATEX wfx;
-    wfx.wFormatTag = WAVE_FORMAT_PCM;
-    wfx.nSamplesPerSec = g_recFreq;
-    wfx.wBitsPerSample = BITS_PER_SAMPLE;
-    wfx.nChannels = NUM_CHANNELS;
-    wfx.nBlockAlign = (wfx.wBitsPerSample / 8) * wfx.nChannels;
-    wfx.nAvgBytesPerSec = wfx.nSamplesPerSec * wfx.nBlockAlign;
-    wfx.cbSize = 0;
-
-    DSCBUFFERDESC dscbd;
-    ZeroMemory(&dscbd, sizeof(dscbd));
-    dscbd.dwSize = sizeof(dscbd);
-    dscbd.dwBufferBytes = BUFFER_SIZE(g_recFreq);
-    dscbd.lpwfxFormat = &wfx;
-
-    if (FAILED(pDSCapture->CreateCaptureBuffer(&dscbd, &pDSCaptureBuffer, NULL))) {
+    inputParameters.device = Pa_GetDefaultInputDevice(); /* default input device */
+    if (inputParameters.device == paNoDevice) {
+        fprintf(stderr,"Error: No default input device.\n");
         return -2;
     }
-    pDSCaptureBuffer->Start(DSCBSTART_LOOPING);
+    
+    inputParameters.channelCount = 1;                    /* stereo input */
+    inputParameters.sampleFormat = PA_SAMPLE_TYPE;
+    inputParameters.suggestedLatency = Pa_GetDeviceInfo( inputParameters.device )->defaultLowInputLatency;
+    inputParameters.hostApiSpecificStreamInfo = NULL;
+   
+    err = Pa_OpenStream(
+              &g_inputStream,
+              &inputParameters,
+              NULL,                  /* &outputParameters, */
+              g_recFreq,
+              FRAMES_PER_BUFFER,
+              paClipOff,      /* we won't output out of range samples so don't bother clipping them */
+              recordCallback,
+              NULL);
+    if( err != paNoError ) return -3;
+
+    err = Pa_StartStream( g_inputStream );
+    if( err != paNoError ) return -4;
 
     return 0;
 }
@@ -129,103 +170,60 @@ int startMic() {
 int listDevices() {
     return 0;
 }
-int startSpeaker() {
-    HWND hwnd = GetConsoleWindow();
 
-    if (FAILED(DirectSoundCreate8(NULL, &pDS, NULL))) {
+static int playCallback( const void *inputBuffer, void *outputBuffer,
+                         unsigned long framesPerBuffer,
+                         const PaStreamCallbackTimeInfo* timeInfo,
+                         PaStreamCallbackFlags statusFlags,
+                         void *userData )
+{
+    SAMPLE *wptr = (SAMPLE*)outputBuffer;
+
+    if( g_playbuf->used < (int)framesPerBuffer ) {
+        fprintf(stderr,"playCallback: buffer exhausted\n");
+        memset(wptr,0,framesPerBuffer*NUM_CHANNELS*sizeof(SAMPLE));
+        return 0;
+    }
+    shiftSamples(g_playbuf,wptr,framesPerBuffer);
+    return 0;
+}
+
+
+int startSpeaker() {
+    PaError  err = Pa_Initialize();
+    if (err != paNoError) {
         return -1;
     }
-
-    if (FAILED(pDS->SetCooperativeLevel(hwnd, DSSCL_PRIORITY))) {
-        return -2;
+    PaStreamParameters outputParameters;
+    outputParameters.device = Pa_GetDefaultOutputDevice(); /* default output device */
+    if (outputParameters.device == paNoDevice) {
+        fprintf(stderr,"Error: No default output device.\n");
+        return -1;
     }
+    outputParameters.channelCount = 1;                     /* stereo output */
+    outputParameters.sampleFormat =  PA_SAMPLE_TYPE;
+    outputParameters.suggestedLatency = Pa_GetDeviceInfo( outputParameters.device )->defaultLowOutputLatency;
+    outputParameters.hostApiSpecificStreamInfo = NULL;
 
-    WAVEFORMATEX wfx;
-    wfx.wFormatTag = WAVE_FORMAT_PCM;
-    wfx.nSamplesPerSec = g_playFreq;
-    wfx.wBitsPerSample = BITS_PER_SAMPLE;
-    wfx.nChannels = NUM_CHANNELS;
-    wfx.nBlockAlign = (wfx.wBitsPerSample / 8) * wfx.nChannels;
-    wfx.nAvgBytesPerSec = wfx.nSamplesPerSec * wfx.nBlockAlign;
-    wfx.cbSize = 0;
+    err = Pa_OpenStream(
+              &g_outputStream,
+              NULL, /* no input */
+              &outputParameters,
+              g_playFreq,
+              FRAMES_PER_BUFFER,
+              paClipOff,      /* we won't output out of range samples so don't bother clipping them */
+              playCallback,
+              NULL );
+    if( err != paNoError ) return -2;
 
-    DSBUFFERDESC dsbd;
-    ZeroMemory(&dsbd, sizeof(dsbd));
-    dsbd.dwSize = sizeof(dsbd);
-    dsbd.dwFlags = DSBCAPS_GLOBALFOCUS;
-    dsbd.dwBufferBytes = BUFFER_SIZE(g_playFreq);
-    dsbd.lpwfxFormat = &wfx;
+    if( !g_outputStream ) return -3;
 
-    if (FAILED(pDS->CreateSoundBuffer(&dsbd, &pDSBuffer, NULL))) {
-        return -3;
-    }
+    err = Pa_StartStream( g_outputStream );
+    if( err != paNoError ) return -4;
 
     return 0;
 }
 
-void updateRecord() {
-    if(!pDSCaptureBuffer) return;
-    const DWORD bufferSize=BUFFER_SIZE(g_recFreq);
-    DWORD capturePos, readPos;
-    pDSCaptureBuffer->GetCurrentPosition(&capturePos, &readPos);                        
-    DWORD lockSize=0;
-    if(capturePos>readPos) lockSize=capturePos-readPos; 
-    else if(capturePos<readPos) lockSize=(bufferSize-readPos)+capturePos;
-    if(lockSize>0) {
-        LPVOID readPtr1, readPtr2;
-        DWORD readBytes1, readBytes2;
-        pDSCaptureBuffer->Lock(readPos, lockSize, &readPtr1, &readBytes1, &readPtr2, &readBytes2, 0);
-        pushSamples(g_recbuf,(short*)readPtr1,readBytes1/2);
-        if (readPtr2) pushSamples(g_recbuf,(short*)readPtr2,readBytes2/2);
-        pDSCaptureBuffer->Unlock(readPtr1, readBytes1, readPtr2, readBytes2);
-    }     
-}
-/* 再生バッファを使い切ったときはtrue を返す*/
-bool updatePlay() {
-    if(!pDSBuffer) return true;
-    const DWORD bufferSize=BUFFER_SIZE(g_playFreq);
-    DWORD playPos, writePos;
-    pDSBuffer->GetCurrentPosition(&playPos, &writePos);
-    DWORD lockSize=0;
-    if(playPos>writePos) lockSize=(bufferSize-playPos)+writePos; 
-    else if(playPos<writePos) lockSize=writePos-playPos;
-    bool exhausted=false;
-    if(lockSize>0) {
-        DWORD to_shift=lockSize/2;
-        if(to_shift<=g_playbuf->used) {
-            LPVOID writePtr1, writePtr2;
-            DWORD writeBytes1, writeBytes2;
-            fprintf(stderr,"lockSize=%d used=%d to_shift:%d playPos:%d writePos:%d\n",lockSize,g_playbuf->used,to_shift,playPos,writePos);
-            pDSBuffer->Lock(writePos, lockSize, &writePtr1, &writeBytes1, &writePtr2, &writeBytes2, 0);
-            shiftSamples(g_playbuf,(short*)writePtr1,writeBytes1/2);
-            if(writePtr2) shiftSamples(g_playbuf,(short*)writePtr2,writeBytes2/2);
-            pDSBuffer->Unlock(writePtr1, writeBytes1, writePtr2, writeBytes2);
-
-        } else {
-            exhausted=true;
-        }
-/*      
-        else {
-            fprintf(stderr,"zeroing\n");
-            memset(writePtr1,0,writeBytes1);
-            if (writePtr2) {
-                memset(writePtr2,0,writeBytes2);
-            }
-        } */
-    } else  {
-        fprintf(stderr,"kkkk\n");
-    }
-    pDSBuffer->Play(0, 0, DSBPLAY_LOOPING);
-    return exhausted;
-}
-
-void update() 
-{
-    updateRecord();
-    updatePlay();
-    
-}
 void stop() {
-    pDSCaptureBuffer->Stop();
-    pDSBuffer->Stop();
+   
 }

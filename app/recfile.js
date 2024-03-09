@@ -1,15 +1,11 @@
-const {NativeAudio,getVolumeBar} = require('./util.js');
-const freq=48000;
-NativeAudio.initSampleBuffers(freq,freq); // NativeAudioの内部バッファを初期化する
-NativeAudio.startMic(); // マイクを開始する
-console.log("app/rec.js started");
-
+const {NativeAudio, getVolumeBar} = require('./util.js');
+const fs=require("fs");
 
 // NativeAudioの内部バッファを初期化する
 NativeAudio.initSampleBuffers(48000,48000); 
 // マイクを開始する
-const r=NativeAudio.startMic(); 
-console.log("startMic:",r);
+NativeAudio.startMic(); 
+
 // 25ミリ秒に1回繰り返す
 setInterval(()=>{
   // マイクからのサンプルを読み込む
@@ -26,7 +22,11 @@ setInterval(()=>{
   }
   // 最大音量を表示する
   const bar = getVolumeBar(maxVol);
-  console.log("mic volume:", bar, "len:",samples.length); 
+  console.log("mic volume:", bar, "len:",samples.length);
+
+  // 録音した音をファイルに保存する
+  const b=Buffer.from(samples.buffer);
+  fs.appendFileSync("recorded.lpcm16",b);
 },25);
 
 

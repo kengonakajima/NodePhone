@@ -28,11 +28,6 @@ void NativeAudio_startMic(const FunctionCallbackInfo<Value>& args) {
     Isolate* isolate = args.GetIsolate();
     args.GetReturnValue().Set(Integer::New(isolate, r));
 }
-void NativeAudio_update(const FunctionCallbackInfo<Value>& args) {
-    update();
-    Isolate* isolate = args.GetIsolate();
-    args.GetReturnValue().Set(Undefined(isolate));
-}
 void NativeAudio_listDevices(const FunctionCallbackInfo<Value>& args) {
     listDevices();
     Isolate* isolate = args.GetIsolate();
@@ -98,7 +93,6 @@ void Initialize(Local<Object> exports) {
     NODE_SET_METHOD(exports, "getRecordedSamples", NativeAudio_getRecordedSamples);
     NODE_SET_METHOD(exports, "discardRecordedSamples", NativeAudio_discardRecordedSamples);
     NODE_SET_METHOD(exports, "getPlayBufferUsed", NativeAudio_getPlayBufferUsed);
-    NODE_SET_METHOD(exports, "update", NativeAudio_update);    
 }
 
 NODE_MODULE(NODE_GYP_MODULE_NAME, Initialize)

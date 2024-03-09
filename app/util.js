@@ -1,4 +1,5 @@
 const assert = require("assert");
+const fs = require('fs');
 const aec3 = require('./aec3.js');
 
 
@@ -79,8 +80,8 @@ if(process.platform=='darwin') {
 // "******      " のような文字列を返す
 function getVolumeBar(l16sample) {
   const vol=Math.abs(l16sample) || 0;
-  const bar = vol / 512;
-  const space = 64-bar;
+  const bar = vol / 1024;
+  const space = 32-bar;
   return "*".repeat(bar)+" ".repeat(space); 
 }
 
@@ -115,9 +116,17 @@ function getMaxValue(ary){
   return maxv;
 }
 
+function appendBinaryToFile(fileName, array) {
+  // 配列をバッファに変換
+  const buffer = Buffer.from(array.buffer);
+
+  // ファイルにバッファを追記
+  fs.appendFileSync(fileName, buffer);
+}
 
 exports.getMaxValue=getMaxValue;
 exports.createJitterBuffer=createJitterBuffer;
 exports.aec3Wrapper = aec3Wrapper;
 exports.getVolumeBar = getVolumeBar;
 exports.NativeAudio = NativeAudio;
+exports.appendBinaryToFile = appendBinaryToFile;
