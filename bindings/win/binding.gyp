@@ -8,7 +8,7 @@
             ],
             "conditions": [
                 ["OS=='win'", {
-                    "libraries": [ "../pa/x64/Debug/portaudio_x64.lib" ],
+                    "libraries": [ "../pa/x64/Release/portaudio_x64.lib" ],
                     "link_settings": {
                         "libraries": [
                             

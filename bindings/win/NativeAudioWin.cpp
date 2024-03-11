@@ -168,6 +168,21 @@ int startMic() {
 }
 
 int listDevices() {
+    int numDevices;
+    numDevices = Pa_GetDeviceCount();
+    if( numDevices < 0 ) {
+        fprintf(stderr, "ERROR: Pa_CountDevices returned 0x%x\n", numDevices);
+        return -1;
+    }
+    fprintf(stderr, "Number of devices = %d\n", numDevices);
+    for (int i = 0; i < numDevices; i++) {
+        const PaDeviceInfo *deviceInfo;
+        deviceInfo = Pa_GetDeviceInfo(i);
+        //hexDump(deviceInfo->name,strlen(deviceInfo->name));
+
+        fprintf(stderr, "Device %d: %s samplerate:%d\n", i, deviceInfo->name, deviceInfo->defaultSampleRate);
+
+    }
     return 0;
 }
 
