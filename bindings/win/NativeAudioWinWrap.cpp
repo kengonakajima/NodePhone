@@ -28,6 +28,11 @@ void NativeAudio_startMic(const FunctionCallbackInfo<Value>& args) {
     Isolate* isolate = args.GetIsolate();
     args.GetReturnValue().Set(Integer::New(isolate, r));
 }
+void NativeAudio_stopMic(const FunctionCallbackInfo<Value>& args) {
+    stopMic();
+    Isolate* isolate = args.GetIsolate();
+    args.GetReturnValue().Set(Undefined(isolate));
+}
 void NativeAudio_listDevices(const FunctionCallbackInfo<Value>& args) {
     listDevices();
     Isolate* isolate = args.GetIsolate();
@@ -37,6 +42,11 @@ void NativeAudio_startSpeaker(const FunctionCallbackInfo<Value>& args) {
     int r=startSpeaker();
     Isolate* isolate = args.GetIsolate();
     args.GetReturnValue().Set(Integer::New(isolate, r));
+}
+void NativeAudio_stopSpeaker(const FunctionCallbackInfo<Value>& args) {
+    stopSpeaker();
+    Isolate* isolate = args.GetIsolate();
+    args.GetReturnValue().Set(Undefined(isolate));
 }
 void NativeAudio_getPlayBufferUsed(const FunctionCallbackInfo<Value>& args) {
     int r=getPlayBufferUsed();
@@ -93,6 +103,8 @@ void Initialize(Local<Object> exports) {
     NODE_SET_METHOD(exports, "getRecordedSamples", NativeAudio_getRecordedSamples);
     NODE_SET_METHOD(exports, "discardRecordedSamples", NativeAudio_discardRecordedSamples);
     NODE_SET_METHOD(exports, "getPlayBufferUsed", NativeAudio_getPlayBufferUsed);
+    NODE_SET_METHOD(exports, "stopMic", NativeAudio_stopMic);
+    NODE_SET_METHOD(exports, "stopSpeaker", NativeAudio_stopSpeaker);
 }
 
 NODE_MODULE(NODE_GYP_MODULE_NAME, Initialize)

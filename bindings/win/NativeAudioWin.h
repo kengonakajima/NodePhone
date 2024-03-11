@@ -11,7 +11,8 @@ extern "C" {
     EXPORT int listDevices();
     EXPORT int startSpeaker();
     EXPORT void update();
-    EXPORT void stop();
+    EXPORT void stopMic();
+    EXPORT void stopSpeaker();
     EXPORT int getRecordedSamples(short *samples_out, int maxnum);
     EXPORT int getPlayBufferUsed();    
     EXPORT void discardRecordedSamples(int num); 

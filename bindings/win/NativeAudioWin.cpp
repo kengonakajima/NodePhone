@@ -195,7 +195,6 @@ static int playCallback( const void *inputBuffer, void *outputBuffer,
     SAMPLE *wptr = (SAMPLE*)outputBuffer;
 
     if( g_playbuf->used < (int)framesPerBuffer ) {
-        fprintf(stderr,"playCallback: buffer exhausted\n");
         memset(wptr,0,framesPerBuffer*NUM_CHANNELS*sizeof(SAMPLE));
         return 0;
     }
@@ -239,6 +238,9 @@ int startSpeaker() {
     return 0;
 }
 
-void stop() {
-   
+void stopMic() {
+    if(g_inputStream) Pa_StopStream( g_inputStream );    
+}
+void stopSpeaker() {
+    if(g_outputStream) Pa_StopStream( g_outputStream );
 }
