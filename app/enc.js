@@ -1,7 +1,7 @@
-const {NativeAudio} = require('./util.js');
+const {PortAudio} = require('./util.js');
 const freq=48000;
-NativeAudio.initSampleBuffers(freq,freq);
-NativeAudio.startMic(); // マイクを開始する
+PortAudio.initSampleBuffers(freq,freq);
+PortAudio.startMic(); // マイクを開始する
 
 
 //const {OpusEncoder}=require("@discordjs/opus");
@@ -11,9 +11,9 @@ const g_recorded=[]; // 録音用バッファ
 const enable_dump=true;
 
 setInterval(()=>{
-  const samples=NativeAudio.getRecordedSamples(); 
+  const samples=PortAudio.getRecordedSamples(); 
   if(samples.length<=0) return; // サンプルがないときは何もせず、無名関数を終了
-  NativeAudio.discardRecordedSamples(samples.length); // NativeAudioの内部バッファを破棄する
+  PortAudio.discardRecordedSamples(samples.length); // PortAudioの内部バッファを破棄する
   for(let i=0;i<samples.length;i++) g_recorded.push(samples[i]); // いったん録音用バッファに蓄積
 
   let encoded_len=0;

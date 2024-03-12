@@ -1,8 +1,8 @@
-const {NativeAudio} = require('./util.js');
+const {PortAudio} = require('./util.js');
 const freq=48000;
-NativeAudio.initSampleBuffers(freq,freq);
-NativeAudio.startMic();
-NativeAudio.startSpeaker();
+PortAudio.initSampleBuffers(freq,freq);
+PortAudio.startMic();
+PortAudio.startSpeaker();
 
 // "******      " のような文字列を返す
 function getVolumeBar(l16sample) {
@@ -14,7 +14,7 @@ function getVolumeBar(l16sample) {
 
 let g_maxSample=0;
 setInterval(()=>{
-  const samples=NativeAudio.getRecordedSamples();
+  const samples=PortAudio.getRecordedSamples();
   // 最大音量を記録
   g_maxSample=0;
   for(let i=0;i<samples.length;i++) {
@@ -22,7 +22,7 @@ setInterval(()=>{
     if(sample>g_maxSample) g_maxSample=sample; 
   }
   console.log("volume:",getVolumeBar(g_maxSample));
-  NativeAudio.pushSamplesForPlay(samples);
-  NativeAudio.discardRecordedSamples(samples.length);  
+  PortAudio.pushSamplesForPlay(samples);
+  PortAudio.discardRecordedSamples(samples.length);  
 },25);
 

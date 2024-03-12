@@ -1,7 +1,7 @@
-const {NativeAudio,appendBinaryToFile} = require('./util.js');
+const {PortAudio,appendBinaryToFile} = require('./util.js');
 const freq=24000; // サンプリング周波数
-NativeAudio.initSampleBuffers(freq,freq); //NativeAudioを初期化
-const r=NativeAudio.startSpeaker(); // スピーカー起動
+PortAudio.initSampleBuffers(freq,freq); //PortAudioを初期化
+const r=PortAudio.startSpeaker(); // スピーカー起動
 console.log("startSpeaker:",r);
 
 const hz=220; // 生成する音の周波数
@@ -14,7 +14,7 @@ setInterval(()=>{
   const curt=new Date().getTime(); // 現在時刻
   const elt=curt-st; // 経過時間
   // 再生用バッファの残り量を調べる
-  const used=NativeAudio.getPlayBufferUsed();
+  const used=PortAudio.getPlayBufferUsed();
   // 残り量が少ない場合はサイン波を4096サンプルづつ生成する
   const n=4096*4;
   if(used>=n) return;
@@ -25,7 +25,7 @@ setInterval(()=>{
     samples[i]=sample;//Math.floor(sample); // 整数にする
     t += dt; // 1サンプル分の時間を進める
   }
-  NativeAudio.pushSamplesForPlay(samples);
+  PortAudio.pushSamplesForPlay(samples);
 //  appendBinaryToFile("played.raw",samples);
 },25);
 

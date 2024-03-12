@@ -62,14 +62,14 @@ aec3Wrapper.setFrequency = function(freq) {
 }
 
 // ネイティブオーディオのAPI
-let NativeAudio=null;
+let PortAudio=null;
 const majorVersion = parseInt(process.version.split('.')[0].substring(1), 10);
 assert(majorVersion>=21); // 添付のモジュールはnode 21でコンパイルされている
 
 if(process.platform=='darwin') {
-    NativeAudio = require('./NativeAudioMac.node');
+    PortAudio = require('./PAmac.node');
 } else if(process.platform=='win32') {
-    NativeAudio = require('./NativeAudioWin.node');
+    PortAudio = require('./PAwin.node');
 } else {
   console.log("TODO");
   assert(false);
@@ -128,5 +128,5 @@ exports.getMaxValue=getMaxValue;
 exports.createJitterBuffer=createJitterBuffer;
 exports.aec3Wrapper = aec3Wrapper;
 exports.getVolumeBar = getVolumeBar;
-exports.NativeAudio = NativeAudio;
+exports.PortAudio = PortAudio;
 exports.appendBinaryToFile = appendBinaryToFile;

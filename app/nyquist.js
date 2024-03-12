@@ -1,8 +1,8 @@
-const {NativeAudio} = require('./util.js');
+const {PortAudio} = require('./util.js');
 // ナイキスト周波数の影響を体験するため、わざと低い周波数を指定する
 const freq=8000; 
-NativeAudio.initSampleBuffers(freq,freq);
-NativeAudio.startSpeaker();
+PortAudio.initSampleBuffers(freq,freq);
+PortAudio.startSpeaker();
 
 let t=0;    // 音波を生成する際の時刻カウンター
 let dt=Math.PI/20.0; // サンプルあたりtの増分
@@ -27,11 +27,11 @@ function generate(sampleNum) {
 
 setInterval(()=>{
   // 再生用バッファの残り量を調べる
-  const used=NativeAudio.getPlayBufferUsed();
+  const used=PortAudio.getPlayBufferUsed();
   // 残り量が減ったら、次のサンプルを生成する
   if(used<2048) {
     const samples=generate(2048);
-    NativeAudio.pushSamplesForPlay(samples);
+    PortAudio.pushSamplesForPlay(samples);
   }
 },25);
 

@@ -1,23 +1,23 @@
-const {NativeAudio,getVolumeBar} = require('./util.js');
+const {PortAudio,getVolumeBar} = require('./util.js');
 const freq=48000;
-NativeAudio.initSampleBuffers(freq,freq); // NativeAudioの内部バッファを初期化する
-NativeAudio.startMic(); // マイクを開始する
+PortAudio.initSampleBuffers(freq,freq); // PortAudioの内部バッファを初期化する
+PortAudio.startMic(); // マイクを開始する
 console.log("app/rec.js started");
 
 
-// NativeAudioの内部バッファを初期化する
-NativeAudio.initSampleBuffers(48000,48000); 
+// PortAudioの内部バッファを初期化する
+PortAudio.initSampleBuffers(48000,48000); 
 // マイクを開始する
-const r=NativeAudio.startMic(); 
+const r=PortAudio.startMic(); 
 console.log("startMic:",r);
 // 25ミリ秒に1回繰り返す
 setInterval(()=>{
   // マイクからのサンプルを読み込む
-  const samples=NativeAudio.getRecordedSamples();
+  const samples=PortAudio.getRecordedSamples();
   // サンプルがないときは何もせず、無名関数を終了
   if(samples.length<=0) return;
-  // NativeAudioの内部バッファを破棄する
-  NativeAudio.discardRecordedSamples(samples.length); 
+  // PortAudioの内部バッファを破棄する
+  PortAudio.discardRecordedSamples(samples.length); 
 
   // samplesに含まれる最大音量を調べる。
   let maxVol=0;
