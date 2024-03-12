@@ -1,8 +1,8 @@
 const assert = require("assert");
 const fs = require('fs');
+
+// AEC3 
 const aec3 = require('./aec3.js');
-
-
 let aec3Wrapper={ initialized: false, freq: 32000 };
 aec3.onRuntimeInitialized = () => {
   console.log("aec3.onRuntimeInitialized called");
@@ -61,7 +61,7 @@ aec3Wrapper.setFrequency = function(freq) {
   console.log("aec3Wrapper.setFrequency:",freq);
 }
 
-// ネイティブオーディオのAPI
+// PortAudio
 let PortAudio=null;
 const majorVersion = parseInt(process.version.split('.')[0].substring(1), 10);
 assert(majorVersion>=21); // 添付のモジュールはnode 21でコンパイルされている
@@ -74,8 +74,19 @@ if(process.platform=='darwin') {
   console.log("TODO");
   assert(false);
 }
-    
 
+// Opus
+let opusPath=null;
+if(process.platform=='darwin') {
+  opusPath='./opusmac.node';
+} else if(process.platform=='win32') {
+  opusPath='./opuswin.node';
+} else {
+  console.log("TODO: not implemented yet");
+  process.exit(1);
+}
+
+const {OpusEncoder} = require(opusPath);
 
 // "******      " のような文字列を返す
 function getVolumeBar(l16sample) {
@@ -129,4 +140,5 @@ exports.createJitterBuffer=createJitterBuffer;
 exports.aec3Wrapper = aec3Wrapper;
 exports.getVolumeBar = getVolumeBar;
 exports.PortAudio = PortAudio;
+exports.OpusEncoder = OpusEncoder;
 exports.appendBinaryToFile = appendBinaryToFile;
