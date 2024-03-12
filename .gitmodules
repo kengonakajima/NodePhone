@@ -1,0 +1,3 @@
+[submodule "app/PANode"]
+	path = app/PANode
+	url = git@github.com:kengonakajima/PANode
