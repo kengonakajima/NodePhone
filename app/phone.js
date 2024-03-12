@@ -9,8 +9,7 @@
 
 const fs=require("fs");
 const ws=require("ws");
-const {OpusEncoder}=require("./opus.node");
-const {PortAudio} = require('./util.js');
+const {PortAudio,OpusEncoder} = require('./util.js');
 
 const {
   aec3Wrapper,
