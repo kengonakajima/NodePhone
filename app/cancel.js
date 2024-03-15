@@ -15,10 +15,10 @@ aec3Wrapper.setFrequency(freq);
 const g_recSamples=[]; // lpcm16。録音バッファ
 const g_refSamples=[]; // lpcm16 再生バッファ
 
-let g_recMaxSample=0, g_playMaxSample=0;
-let g_enh=0;
-
 setInterval(()=>{
+  let recMax=0, playMax=0;
+  let enh=0;
+  
   // マイクからのサンプルを読み込む
   const samples=PortAudio.getRecordedSamples(); 
   if(samples.length<=0) return; // サンプルがないときは何もせず、無名関数を終了
@@ -27,13 +27,11 @@ setInterval(()=>{
   // samplesに含まれる最大音量を調べる。  samplesの要素は -32768から32767の値を取る。
   let maxVol=0;
   for(const sample of samples) {
-    if(sample>g_recMaxSample) g_recMaxSample=sample;
+    if(sample>recMax) recMax=sample;
     g_recSamples.push(sample); // 録音バッファに記録
   }
-},25);
 
-// 再生
-setInterval(()=>{
+  // 再生
   if(aec3Wrapper.initialized && g_recSamples.length>=aec3Wrapper.samples_per_frame ) {
     let frameNum=Math.floor(g_recSamples.length/aec3Wrapper.samples_per_frame);
     if(frameNum>10) frameNum=10;
@@ -50,26 +48,24 @@ setInterval(()=>{
       aec3Wrapper.update_ref_frame(ref);
       const processed=new Int16Array(aec3Wrapper.samples_per_frame);
       aec3Wrapper.process(80,processed,1);
-      g_playMaxSample=0;
+      playMax=0;
       const play=new Int16Array(aec3Wrapper.samples_per_frame);
       for(let i=0;i<aec3Wrapper.samples_per_frame;i++) {
         const sample=processed[i];
         g_refSamples.push(sample);
         play[i]=sample;        
-        if(sample>g_playMaxSample)g_playMaxSample=sample;
+        if(sample>playMax) playMax=sample;
       }
       PortAudio.pushSamplesForPlay(play);      
     }
-    g_enh=aec3Wrapper.get_metrics_echo_return_loss_enhancement();
+    enh=aec3Wrapper.get_metrics_echo_return_loss_enhancement();
   }
-},25);
 
-setInterval(function() {
   process.stdout.write('\033c');  
-  console.log("rec:",getVolumeBar(g_recMaxSample));
-  console.log("play:",getVolumeBar(g_playMaxSample));
+  console.log("rec:",getVolumeBar(recMax));
+  console.log("play:",getVolumeBar(playMax));
   console.log("recSamples:",g_recSamples.length);
   console.log("refSamples:",g_refSamples.length);  
-  console.log("Enhance:",getVolumeBar(g_enh*2000));
+  console.log("Enhance:",getVolumeBar(enh*2000));
   console.log("VoiceProb:",aec3Wrapper.get_voice_probability());
 },50);
