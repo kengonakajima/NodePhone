@@ -31,7 +31,7 @@ setInterval(()=>{
     g_recSamples.push(sample); // 録音バッファに記録
   }
 
-  // 再生
+  // 録音バッファに音が来ていたらエコーキャンセラを呼び出す
   if(aec3Wrapper.initialized && g_recSamples.length>=aec3Wrapper.samples_per_frame ) {
     let frameNum=Math.floor(g_recSamples.length/aec3Wrapper.samples_per_frame);
     if(frameNum>10) frameNum=10;
@@ -40,27 +40,28 @@ setInterval(()=>{
       for(let i=0;i<aec3Wrapper.samples_per_frame;i++) {
         rec[i]=g_recSamples.shift();
       }
-      aec3Wrapper.update_rec_frame(rec);
+      aec3Wrapper.update_rec_frame(rec); // 録音サンプルをAECに渡す
       const ref=new Int16Array(aec3Wrapper.samples_per_frame);
       for(let i=0;i<aec3Wrapper.samples_per_frame;i++) {
         ref[i]=g_refSamples.shift();
       }
-      aec3Wrapper.update_ref_frame(ref);
+      aec3Wrapper.update_ref_frame(ref); // 前回記録した参照バッファをAECに渡す
       const processed=new Int16Array(aec3Wrapper.samples_per_frame);
-      aec3Wrapper.process(80,processed,1);
+      aec3Wrapper.process(80,processed,1); // AECの実際の処理を実行する
       playMax=0;
       const play=new Int16Array(aec3Wrapper.samples_per_frame);
       for(let i=0;i<aec3Wrapper.samples_per_frame;i++) {
         const sample=processed[i];
-        g_refSamples.push(sample);
-        play[i]=sample;        
+        g_refSamples.push(sample); // AEC処理された音を参照バッファに送る
+        play[i]=sample;         // 同じ音を再生バッファに送る
         if(sample>playMax) playMax=sample;
       }
-      PortAudio.pushSamplesForPlay(play);      
+      PortAudio.pushSamplesForPlay(play);  // スピーカーに送る     
     }
-    enh=aec3Wrapper.get_metrics_echo_return_loss_enhancement();
+    enh=aec3Wrapper.get_metrics_echo_return_loss_enhancement(); // 統計情報を取得
   }
 
+  // デバッグ表示
   process.stdout.write('\033c');  
   console.log("rec:",getVolumeBar(recMax));
   console.log("play:",getVolumeBar(playMax));
