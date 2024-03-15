@@ -1,5 +1,5 @@
-const {PortAudio,OpusEncoder} = require('./util.js');
 const freq=48000;
+const {PortAudio,OpusEncoder} = require('./util.js');
 PortAudio.initSampleBuffers(freq,freq);
 PortAudio.startMic(); // マイクを開始する
 
