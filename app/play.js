@@ -1,8 +1,7 @@
-const {PortAudio,appendBinaryToFile} = require('./util.js');
 const freq=24000; // サンプリング周波数
+const {PortAudio,appendBinaryToFile} = require('./util.js');
 PortAudio.initSampleBuffers(freq,freq); //PortAudioを初期化
-const r=PortAudio.startSpeaker(); // スピーカー起動
-console.log("startSpeaker:",r);
+PortAudio.startSpeaker(); // スピーカー起動
 
 const hz=220; // 生成する音の周波数
 const dt=Math.PI * 2 * hz / freq; // 1サンプルあたりの時間差

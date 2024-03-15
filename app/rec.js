@@ -1,5 +1,5 @@
-const {PortAudio,getVolumeBar} = require('./util.js');
 const freq=48000;
+const {PortAudio,getVolumeBar} = require('./util.js');
 PortAudio.initSampleBuffers(freq,freq); // PortAudioの内部バッファを初期化する
 PortAudio.startMic(); // マイクを開始する
 console.log("app/rec.js started");
