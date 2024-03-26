@@ -4,16 +4,15 @@ PortAudio.initSampleBuffers(freq,freq);
 PortAudio.startMic();
 PortAudio.startSpeaker();
 
-let g_maxSample=0;
 setInterval(()=>{
   const samples=PortAudio.getRecordedSamples();
   // 最大音量を記録
-  g_maxSample=0;
+  let maxSample=0;
   for(let i=0;i<samples.length;i++) {
     const sample=samples[i];    
-    if(sample>g_maxSample) g_maxSample=sample; 
+    if(sample>maxSample) maxSample=sample; 
   }
-  console.log("volume:",getVolumeBar(g_maxSample));
+  console.log("volume:",getVolumeBar(maxSample));
   PortAudio.pushSamplesForPlay(samples);
   PortAudio.discardRecordedSamples(samples.length);  
 },25);
