@@ -1,4 +1,4 @@
-const {PortAudio,appendBinaryToFile} = require('./util.js');
+const {PortAudio} = require('./util.js');
 const freq=24000; // サンプリング周波数
 PortAudio.initSampleBuffers(freq,freq); //PortAudioを初期化
 PortAudio.startSpeaker(); // スピーカー起動
@@ -25,7 +25,6 @@ setInterval(()=>{
     t += dt; // 1サンプル分の時間を進める
   }
   PortAudio.pushSamplesForPlay(samples);
-//  appendBinaryToFile("played.raw",samples);
 },25);
 
 
