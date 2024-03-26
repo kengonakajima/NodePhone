@@ -1,16 +1,8 @@
-const {PortAudio} = require('./util.js');
+const {PortAudio,getVolumeBar} = require('./util.js');
 const freq=48000;
 PortAudio.initSampleBuffers(freq,freq);
 PortAudio.startMic();
 PortAudio.startSpeaker();
-
-// "******      " のような文字列を返す
-function getVolumeBar(l16sample) {
-  const vol=Math.abs(l16sample);
-  const bar = vol / 1024;
-  const space = 32-bar;
-  return "*".repeat(bar)+" ".repeat(space); 
-}
 
 let g_maxSample=0;
 setInterval(()=>{
