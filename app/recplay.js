@@ -6,7 +6,7 @@ PortAudio.startSpeaker();
 
 setInterval(()=>{
   const samples=PortAudio.getRecordedSamples();
-  // 最大音量を記録
+  // 最大音量を表示
   let maxSample=0;
   for(let i=0;i<samples.length;i++) {
     const sample=samples[i];    
