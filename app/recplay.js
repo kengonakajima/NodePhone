@@ -13,7 +13,7 @@ setInterval(()=>{
     if(sample>maxSample) maxSample=sample; 
   }
   console.log("volume:",getVolumeBar(maxSample));
-  PortAudio.pushSamplesForPlay(samples);
   PortAudio.discardRecordedSamples(samples.length);  
+  PortAudio.pushSamplesForPlay(samples);
 },25);
 
