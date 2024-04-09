@@ -1,6 +1,6 @@
 const {PortAudio} = require('./util.js');
 const freq=48000; // aec3の必要条件
-PortAudio.initSampleBuffers(freq,freq);
+PortAudio.initSampleBuffers(freq,freq,512);
 PortAudio.startMic();
 PortAudio.startSpeaker();
 

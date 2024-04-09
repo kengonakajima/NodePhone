@@ -1,6 +1,6 @@
 const {PortAudio,OpusEncoder} = require('./util.js');
 const freq=48000;
-PortAudio.initSampleBuffers(freq,freq);
+PortAudio.initSampleBuffers(freq,freq,512);
 PortAudio.startMic(); // マイクを開始する
 
 const encoder=new OpusEncoder(48000,1); // 32KHz, monoral

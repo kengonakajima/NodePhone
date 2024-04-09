@@ -1,6 +1,6 @@
 const {PortAudio,getVolumeBar} = require('./util.js');
 const freq=48000;
-PortAudio.initSampleBuffers(freq,freq);
+PortAudio.initSampleBuffers(freq,freq,512);
 PortAudio.startMic();
 PortAudio.startSpeaker();
 

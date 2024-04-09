@@ -1,7 +1,7 @@
 // ナイキスト周波数の影響を体験するため、わざと低い周波数を指定する
 const freq=8000;
 const {PortAudio} = require('./util.js');
-PortAudio.initSampleBuffers(freq,freq);
+PortAudio.initSampleBuffers(freq,freq,512);
 PortAudio.startSpeaker();
 
 let t=0;    // 音波を生成する際の時刻カウンター

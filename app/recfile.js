@@ -2,7 +2,7 @@ const {PortAudio, getVolumeBar} = require('./util.js');
 const fs=require("fs");
 
 // PortAudioの内部バッファを初期化する
-PortAudio.initSampleBuffers(48000,48000); 
+PortAudio.initSampleBuffers(48000,48000,512); 
 // マイクを開始する
 PortAudio.startMic(); 
 

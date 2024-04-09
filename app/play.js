@@ -1,6 +1,6 @@
 const {PortAudio} = require('./util.js');
 const freq=24000; // サンプリング周波数
-PortAudio.initSampleBuffers(freq,freq); //PortAudioを初期化
+PortAudio.initSampleBuffers(freq,freq,512); //PortAudioを初期化
 PortAudio.startSpeaker(); // スピーカー起動
 
 const hz=220; // 生成する音の周波数

@@ -134,6 +134,23 @@ function appendBinaryToFile(fileName, array) {
   fs.appendFileSync(fileName, buffer);
 }
 
+function to_f(s) {
+  return s/32767.0;
+}
+function to_s(f) {
+  return Math.round(f * 32767);
+}
+
+function s_to_f_array(s_ary) {
+  const out=new Float32Array(s_ary.length);
+  for(let i=0;i<s_ary.length;i++) {
+    out[i]=to_f(s_ary[i]);
+  }
+  return out;
+}
+
+
+
 exports.getMaxValue=getMaxValue;
 exports.createJitterBuffer=createJitterBuffer;
 exports.aec3Wrapper = aec3Wrapper;
@@ -141,3 +158,6 @@ exports.getVolumeBar = getVolumeBar;
 exports.PortAudio = PortAudio;
 exports.OpusEncoder = OpusEncoder;
 exports.appendBinaryToFile = appendBinaryToFile;
+exports.to_f=to_f;
+exports.to_s=to_s;
+exports.s_to_f_array=s_to_f_array;

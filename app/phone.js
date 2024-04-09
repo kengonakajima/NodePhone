@@ -41,7 +41,7 @@ if(g_freq==16000) throw "opus dont support 16kHz";
 
 aec3Wrapper.setFrequency(g_freq);
 
-PortAudio.initSampleBuffers(g_freq,g_freq);
+PortAudio.initSampleBuffers(g_freq,g_freq,512);
 PortAudio.startMic();
 PortAudio.startSpeaker();
 
