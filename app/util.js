@@ -149,8 +149,68 @@ function s_to_f_array(s_ary) {
   return out;
 }
 
+function calcMse(signal) {
+  let sumSquared = 0;
+  for (let i = 0; i < signal.length; i++) {
+    sumSquared += signal[i] * signal[i];
+  }
+  return sumSquared / signal.length;
+}
 
+function save_f(buf, path) {
+  const n = buf.length;
+  const sb = new Int16Array(n);
 
+  for (let i = 0; i < n; i++) {
+    sb[i] = to_s(buf[i]);
+  }
+
+  fs.writeFileSync(path, Buffer.from(sb.buffer));
+}
+function append_f(buf,path) {
+  const n = buf.length;
+  const sb = new Int16Array(n);
+
+  for (let i = 0; i < n; i++) {
+    sb[i] = to_s(buf[i]);
+  }
+
+  appendBinaryToFile(path,sb);
+}
+
+function rm(path) {
+  try {
+   fs.unlinkSync(path); 
+  }catch(e) {
+    
+  }
+}
+
+function calcERLE(inputSignal, outputSignal) {
+  const inputPower = calcAveragePower(inputSignal);
+  const residualEchoPower = calcAveragePower(outputSignal);
+  
+  const erle = 10 * Math.log10(inputPower / residualEchoPower);
+  return erle;
+}
+
+function calcAveragePower(signal) {
+  const sum = signal.reduce((acc, sample) => acc + sample ** 2, 0);
+  const averagePower = sum / signal.length;
+  return averagePower;
+}
+
+function padNumber(number, width, paddingChar = ' ') {
+  return number.toString().padStart(width, paddingChar);
+}
+function totMag(a,b) {
+  let tot=0;
+  for(let i=0;i<a.length;i++) {
+    const d=a[i]-b[i];
+    tot+=d*d;
+  }
+  return tot;
+}
 exports.getMaxValue=getMaxValue;
 exports.createJitterBuffer=createJitterBuffer;
 exports.aec3Wrapper = aec3Wrapper;
@@ -161,3 +221,11 @@ exports.appendBinaryToFile = appendBinaryToFile;
 exports.to_f=to_f;
 exports.to_s=to_s;
 exports.s_to_f_array=s_to_f_array;
+exports.calcMse = calcMse;
+exports.save_f = save_f;
+exports.append_f = append_f;
+exports.rm=rm;
+exports.calcERLE = calcERLE;
+exports.calcAveragePower = calcAveragePower;
+exports.padNumber=padNumber;
+exports.totMag=totMag;
