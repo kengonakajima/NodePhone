@@ -287,7 +287,6 @@ function ifft(x) {
 function fft_f(floats) {
   const n=floats.length;
   const g=to_c_array(floats);
-  console.log("g:",g);
   const G=fft(g);
   return G;
 }
@@ -298,6 +297,28 @@ function to_c_array(floats) {
   for(let i=0;i<floats.length;i++) out[i]={ re: floats[i], im:0 };
   return out;
 }
+
+function spectrumBar(s,num) {
+  const out=[];
+  for(let i=0;i<num;i++) out[i]=' ';
+  const step=s.length/num;  
+  for(let i=0;i<s.length;i++) {
+    const outi=parseInt(i/step);
+    let e=s[i].re;
+    if(e<0)e*=-1;
+    if(e>out[outi])out[outi]=e;
+  }
+  for(let i=0;i<num;i++) {
+    if(out[i]>1) out[i]='*';
+    else if(out[i]>0.5) out[i]='+';
+    else if(out[i]>0.2) out[i]='-';
+    else if(out[i]>0.05) out[i]='.';
+    else out[i]=' ';
+  }
+  
+  return out.join("");
+}
+
 
 exports.getMaxValue=getMaxValue;
 exports.createJitterBuffer=createJitterBuffer;
@@ -322,3 +343,4 @@ exports.fft=fft;
 exports.ifft=ifft;
 exports.to_c_array=to_c_array;
 exports.fft_f=fft_f;
+exports.spectrumBar=spectrumBar;
