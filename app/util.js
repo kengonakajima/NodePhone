@@ -141,14 +141,20 @@ function to_s(f) {
   return Math.round(f * 32767);
 }
 
-function s_to_f_array(s_ary) {
+function to_f_array(s_ary) {
   const out=new Float32Array(s_ary.length);
   for(let i=0;i<s_ary.length;i++) {
     out[i]=to_f(s_ary[i]);
   }
   return out;
 }
-
+function to_s_array(f_ary) {
+  const out=new Int16Array(f_ary.length);
+  for(let i=0;i<f_ary.length;i++) {
+    out[i]=to_s(f_ary[i]);
+  }
+  return out;  
+}
 function calcMse(signal) {
   let sumSquared = 0;
   for (let i = 0; i < signal.length; i++) {
@@ -211,6 +217,88 @@ function totMag(a,b) {
   }
   return tot;
 }
+
+// {re,im}
+function fft(x) {
+  const n = x.length;
+
+  if (n === 1) {
+    return x;
+  }
+
+  const even = [];
+  const odd = [];
+
+  for (let i = 0; i < n; i++) {
+    if (i % 2 === 0) {
+      even.push(x[i]);
+    } else {
+      odd.push(x[i]);
+    }
+  }
+
+  const evenFFT = fft(even);
+  const oddFFT = fft(odd);
+
+  const result = new Array(n);
+
+  for (let k = 0; k < n / 2; k++) {
+    const angle = -2 * Math.PI * k / n;
+    const twiddle = {
+      re: Math.cos(angle),
+      im: Math.sin(angle)
+    };
+
+    const t = {
+      re: twiddle.re * oddFFT[k].re - twiddle.im * oddFFT[k].im,
+      im: twiddle.re * oddFFT[k].im + twiddle.im * oddFFT[k].re
+    };
+
+    result[k] = {
+      re: evenFFT[k].re + t.re,
+      im: evenFFT[k].im + t.im
+    };
+
+    result[k + n / 2] = {
+      re: evenFFT[k].re - t.re,
+      im: evenFFT[k].im - t.im
+    };
+  }
+
+  return result;
+}
+
+// {re,im}
+function ifft(x) {
+  const n = x.length;
+
+  // FFTの結果を複素共役にする
+  const conjugate = x.map(({ re, im }) => ({ re, im: -im }));
+
+  // 複素共役に対してFFTを適用する
+  const fftResult = fft(conjugate);
+
+  // 結果を実数部のみにして、大きさをn倍する
+  const result = fftResult.map(({ re }) => re / n);
+
+  return result;
+}
+
+function fft_f(floats) {
+  const n=floats.length;
+  const g=to_c_array(floats);
+  console.log("g:",g);
+  const G=fft(g);
+  return G;
+}
+
+// float to {re,im}
+function to_c_array(floats) {
+  const out=new Array(floats.length);
+  for(let i=0;i<floats.length;i++) out[i]={ re: floats[i], im:0 };
+  return out;
+}
+
 exports.getMaxValue=getMaxValue;
 exports.createJitterBuffer=createJitterBuffer;
 exports.aec3Wrapper = aec3Wrapper;
@@ -220,7 +308,8 @@ exports.OpusEncoder = OpusEncoder;
 exports.appendBinaryToFile = appendBinaryToFile;
 exports.to_f=to_f;
 exports.to_s=to_s;
-exports.s_to_f_array=s_to_f_array;
+exports.to_f_array=to_f_array;
+exports.to_s_array=to_s_array;
 exports.calcMse = calcMse;
 exports.save_f = save_f;
 exports.append_f = append_f;
@@ -229,3 +318,7 @@ exports.calcERLE = calcERLE;
 exports.calcAveragePower = calcAveragePower;
 exports.padNumber=padNumber;
 exports.totMag=totMag;
+exports.fft=fft;
+exports.ifft=ifft;
+exports.to_c_array=to_c_array;
+exports.fft_f=fft_f;
