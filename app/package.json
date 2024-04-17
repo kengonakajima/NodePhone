@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "canvas": "^2.11.2",
     "node-gyp": "^10.0.1",
     "node-gyp-build": "^4.7.0",
     "ws": "^8.8.1"
