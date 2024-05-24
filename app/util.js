@@ -199,7 +199,11 @@ function calcAveragePower(signal) {
   const averagePower = sum / signal.length;
   return averagePower;
 }
-
+function calcAveragePowerComplex(fftResult) {
+  const sum = fftResult.reduce((acc, { re, im }) => acc + re ** 2 + im ** 2, 0);
+  const averagePower = sum / fftResult.length;
+  return averagePower;
+}
 function padNumber(number, width, paddingChar = ' ') {
   return number.toString().padStart(width, paddingChar);
 }
@@ -482,6 +486,34 @@ function findMax(array,skipTop=0) {
   return {index: out_ind, value: max};
 }
 
+function createComplexArray(n) {
+  const out=new Array(n);
+  for(let i=0;i<n;i++) out[i]={re:0, im:0};
+  return out;
+}
+
+function findMaxComplex(ary) {
+  let max=-999999999;
+  for(let i=0;i<ary.length;i++) {
+    const v=ary[i].re * ary[i].re + ary[i].im * ary[i].im;
+    if(v>max) max=v;
+  }
+  return max;
+}
+
+function calcPowerSpectrum(complexArray) {
+  const out=new Float32Array(complexArray.length);
+  for(let i=0;i<complexArray.length;i++) {
+    out[i]=complexArray[i].re * complexArray[i].re + complexArray[i].im * complexArray[i].im;
+  }
+  return out;
+}
+
+function padNumber(number, width, paddingChar = ' ') {
+  return number.toString().padStart(width, paddingChar);
+}
+
+
 exports.getMaxValue=getMaxValue;
 exports.createJitterBuffer=createJitterBuffer;
 exports.aec3Wrapper = aec3Wrapper;
@@ -498,6 +530,7 @@ exports.append_f = append_f;
 exports.rm=rm;
 exports.calcERLE = calcERLE;
 exports.calcAveragePower = calcAveragePower;
+exports.calcAveragePowerComplex = calcAveragePowerComplex;
 exports.padNumber=padNumber;
 exports.totMag=totMag;
 exports.fft=fft;
@@ -516,3 +549,7 @@ exports.loadLPCMFileSync=loadLPCMFileSync;
 exports.firFilter=firFilter;
 exports.firFilterFFT=firFilterFFT;
 exports.findMax=findMax;
+exports.findMaxComplex=findMaxComplex;
+exports.createComplexArray=createComplexArray;
+exports.calcPowerSpectrum=calcPowerSpectrum;
+exports.padNumber=padNumber;
