@@ -139,6 +139,8 @@ function echoCancel(ref,rec,coefs,chunkIndex) {
   const Hs=ifft_f(H);
 
   plotArrayToImage([Hs],1024,512,`plots/fft_Hs_${chunkIndex}.png`,1);
+  const m=findMax(Hs);
+  console.log("findMax:",m);
   
 
   const estimated=s;

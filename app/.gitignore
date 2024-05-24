@@ -6,3 +6,4 @@ NativeAudioMac.o
 build
 output.wav
 recorded.lpcm16
+plots
