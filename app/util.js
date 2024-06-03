@@ -92,7 +92,8 @@ const {OpusEncoder} = require(opusPath);
 function getVolumeBar(l16sample) {
   const vol=Math.abs(l16sample) || 0;
   const bar = vol / 1024;
-  const space = 32-bar;
+  let space = 32-bar;
+  if(space<0) space=0;
   return "*".repeat(bar)+" ".repeat(space); 
 }
 
@@ -120,6 +121,7 @@ function createJitterBuffer(jitter) {
 }
 
 function getMaxValue(ary){
+  if(ary.length==0) return 0;
   let maxv=-9999999;
   for(let i in ary) {
     if(ary[i]>maxv) maxv=ary[i];
@@ -128,11 +130,12 @@ function getMaxValue(ary){
 }
 
 function appendBinaryToFile(fileName, array) {
-  // 配列をバッファに変換
   const buffer = Buffer.from(array.buffer);
-
-  // ファイルにバッファを追記
   fs.appendFileSync(fileName, buffer);
+}
+function writeBinaryToFile(fileName, array) {
+  const buffer = Buffer.from(array.buffer);
+  fs.writeFileSync(fileName, buffer);
 }
 
 function to_f(s) {
@@ -299,13 +302,13 @@ function to_c_array(floats) {
   return out;
 }
 
-function spectrumBar(s,num) {
+function spectrumBar(s,num,scale=1) {
   const out=[];
   for(let i=0;i<num;i++) out[i]=' ';
   const step=s.length/num;  
   for(let i=0;i<s.length;i++) {
     const outi=parseInt(i/step);
-    let e=s[i].re;
+    let e=s[i].re * scale;
     if(e<0)e*=-1;
     if(e>out[outi])out[outi]=e;
   }
@@ -521,6 +524,7 @@ exports.getVolumeBar = getVolumeBar;
 exports.PortAudio = PortAudio;
 exports.OpusEncoder = OpusEncoder;
 exports.appendBinaryToFile = appendBinaryToFile;
+exports.writeBinaryToFile = writeBinaryToFile;
 exports.to_f=to_f;
 exports.to_s=to_s;
 exports.to_f_array=to_f_array;
