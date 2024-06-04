@@ -9,3 +9,7 @@ recorded.lpcm16
 plots
 can0*.pcm
 can1*.pcm
+fft_*.lpcm
+fir_filter_diff.lpcm
+playcancel_*.lpcm16
+playcancel_*.pcm
