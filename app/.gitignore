@@ -7,3 +7,5 @@ build
 output.wav
 recorded.lpcm16
 plots
+can0*.pcm
+can1*.pcm
