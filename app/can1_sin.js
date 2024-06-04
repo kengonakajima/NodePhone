@@ -1,5 +1,7 @@
 /*
   countingは複雑な声を含んでいるので、純粋なサイン波でテストする。
+  するとチャンクの左右の端でフィルタ結果の不安定が見られる。
+  その原因は窓関数を使っていないからと考えられるため、窓関数を使うサンプルにする。
   
   */
 
@@ -148,7 +150,9 @@ const coefs=createComplexArray(unit); // フィルタ係数
 
 const finalSamples=new Float32Array(rec.length);
 const estimatedSamples=new Float32Array(rec.length);
-const chunkNum=Math.ceil(rec.length/unit);
+let chunkNum=Math.ceil(rec.length/unit);
+if(chunkNum>40) chunkNum=40;
+
 for(let l=0;l<chunkNum;l++) {
   const recChunk=new Float32Array(unit);
   for(let i=0;i<unit;i++) recChunk[i]=rec[l*unit+i];
