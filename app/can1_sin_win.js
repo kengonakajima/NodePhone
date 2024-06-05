@@ -27,12 +27,13 @@ const {
   spectrumBar,
   calcAveragePowerComplex,
   calcPowerSpectrum,
-  padNumber
+  padNumber,
+  applyHannWindow
 }=require("./util.js");
 
 
 
-const chunkSize=1024;
+const chunkSize=256;
 const unit=chunkSize*2; // 処理単位はチャンクサイズの2倍
 
 const H_error = new Float32Array(unit); // FIRフィルタの係数Hとは異なる。  Xと同じサイズが必要
@@ -42,8 +43,10 @@ function echoCancel(ref,rec,coefs,chunkIndex) {
   const st=new Date().getTime();
   const N=ref.length;
 
-  const x=ref;
-  const y=rec;
+  const refHann=applyHannWindow(ref);
+  const x=refHann;
+  const recHann=applyHannWindow(rec);
+  const y=recHann;
   
   const X=fft_f(x);
   const Y=fft_f(y);
@@ -57,30 +60,31 @@ function echoCancel(ref,rec,coefs,chunkIndex) {
     const im = x.re * H[i].im + x.im * H[i].re;
     return { re, im };
   });
-  console.log("H:",H);
-  console.log("S:",spectrumBar(S,64),calcAveragePowerComplex(S));
+  //console.log("H:",H);
+  //console.log("S:",spectrumBar(S,64),calcAveragePowerComplex(S));
 
 
   const s = ifft_f(S);
-  console.log("s:",s,calcAveragePower(s));
+  //console.log("s:",s,calcAveragePower(s));
 
   const e = new Float32Array(N); //時間領域の予測誤差
 
   for(let i=0;i<N;i++) e[i]=y[i]-s[i];
 
-  const E = fft_f(e); // E: eの周波数領域表現
+  const eHann=applyHannWindow(e);
+  const E = fft_f(eHann); // E: eの周波数領域表現
   
 
   const Xs = calcPowerSpectrum(X); // Xs: Xのパワースペクトラム
   const Es = calcPowerSpectrum(E); // Es: Eのパワースペクトラム
 
   const pn=padNumber(chunkIndex,3,'0');
-  console.log("pn:",pn);
-  plotArrayToImage([Xs,Es],1024,512,`plots/fft_win_${pn}.png`,1);
-  plotArrayToImage([x],1024,512,`plots/fft_win_x_${pn}.png`,1);
-  plotArrayToImage([y],1024,512,`plots/fft_win_y_${pn}.png`,1);
-  plotArrayToImage([s],1024,512,`plots/fft_win_s_${pn}.png`,1);
-  plotArrayToImage([e],1024,512,`plots/fft_win_e_${pn}.png`,1);        
+
+  //plotArrayToImage([Xs,Es],1024,512,`plots/fft_win_${pn}.png`,1);
+  //plotArrayToImage([x],1024,512,`plots/fft_win_x_${pn}.png`,1);
+  //plotArrayToImage([y],1024,512,`plots/fft_win_y_${pn}.png`,1);
+  //plotArrayToImage([s],1024,512,`plots/fft_win_s_${pn}.png`,1);
+  //plotArrayToImage([e],1024,512,`plots/fft_win_e_${pn}.png`,1);        
 
 
   //     mu = H_error / (0.5* H_error* X2 + n * E2).
@@ -93,7 +97,7 @@ function echoCancel(ref,rec,coefs,chunkIndex) {
 
   for(let i=0;i<N;i++) H_error[i]-=(0.5 * mu[i] * Xs[i] * H_error[i]);
 
-  console.log("H_error:",H_error); 
+//  console.log("H_error:",H_error); 
 
   // G = mu * E
   const G = new Array(N);
@@ -116,9 +120,8 @@ function echoCancel(ref,rec,coefs,chunkIndex) {
 
   const Hs=ifft_f(H);
 
-  plotArrayToImage([Hs],1024,512,`plots/fft_win_Hs_${pn}.png`,1);
+  //plotArrayToImage([Hs],1024,512,`plots/fft_win_Hs_${pn}.png`,1);
   const m=findMax(Hs);
-  console.log("findMax:",m);
   
 
   // ここでsが予測値、eが誤差。両方とも、長さはNなので、出力するのは真ん中の使える部分だけにする必要がある。
@@ -153,12 +156,13 @@ const coefs=createComplexArray(unit); // フィルタ係数
 const finalSamples=new Float32Array(rec.length);
 const estimatedSamples=new Float32Array(rec.length);
 let chunkNum=Math.ceil(rec.length/chunkSize);
-if(chunkNum>40) chunkNum=40;
+//if(chunkNum>40) chunkNum=40;
 
 for(let l=0;l<chunkNum;l++) {
   const recChunk=new Float32Array(unit);
   for(let i=0;i<unit;i++) recChunk[i]=rec[l*chunkSize+i-chunkSize/2]||0;
   const refChunk=new Float32Array(unit);
+  Array(unit);
   for(let i=0;i<unit;i++) refChunk[i]=rec[l*chunkSize+i-delay-chunkSize/2]||0;
   const ecOut=echoCancel(refChunk,recChunk,coefs,l);    
   const recP=calcAveragePower(recChunk);

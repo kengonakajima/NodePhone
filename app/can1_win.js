@@ -24,11 +24,12 @@ const {
   spectrumBar,
   calcAveragePowerComplex,
   calcPowerSpectrum,
-  padNumber
+  padNumber,
+  applyHannWindow
 }=require("./util.js");
 
 
-const chunkSize=2048; // チャンクサイズ
+const chunkSize=512; // チャンクサイズ
 const unit=chunkSize*2; //処理単位  
 
 const H_error = new Float32Array(unit); // FIRフィルタの係数Hとは異なる。
@@ -39,8 +40,10 @@ function echoCancel(ref,rec,coefs,chunkIndex,toUpdateCoefs) {
   const st=new Date().getTime();
   const N=ref.length;
 
-  const x=ref;
-  const y=rec;
+  const refHann=applyHannWindow(ref);
+  const x=refHann;
+  const recHann=applyHannWindow(rec);
+  const y=recHann;
   
   const X=fft_f(x);
   const Y=fft_f(y);
@@ -54,35 +57,35 @@ function echoCancel(ref,rec,coefs,chunkIndex,toUpdateCoefs) {
     const im = x.re * H[i].im + x.im * H[i].re;
     return { re, im };
   });
-  console.log("H:",H);
-  console.log("S:",spectrumBar(S,64),calcAveragePowerComplex(S));
+  //console.log("H:",H);
+  //console.log("S:",spectrumBar(S,64),calcAveragePowerComplex(S));
 
 
   const s = ifft_f(S);
-  console.log("s:",s,calcAveragePower(s));
-  console.log("y:",y);
+  //console.log("s:",s,calcAveragePower(s));
+  //console.log("y:",y);
   const e = new Float32Array(N); //時間領域の予測誤差
 
   for(let i=0;i<N;i++) e[i]=y[i]-s[i];
 
-  const E = fft_f(e); // E: eの周波数領域表現
+  const eHann=applyHannWindow(e);
+  const E = fft_f(eHann); // E: eの周波数領域表現
 
-  console.log("e:",e,"error AvgPower:", calcAveragePower(e)*N, calcAveragePower(y) ); // N倍したらYのavgPowと同じ値になる。
-
+  //console.log("e:",e,"error AvgPower:", calcAveragePower(e)*N, calcAveragePower(y) ); // N倍したらYのavgPowと同じ値になる。
   
 
   const Xs = calcPowerSpectrum(X); // Xs: Xのパワースペクトラム
   const Es = calcPowerSpectrum(E); // Es: Eのパワースペクトラム
 
-  console.log("Es:",Es,"Xs:",Xs);
+  // console.log("Es:",Es,"Xs:",Xs);
 
   const pn=padNumber(chunkIndex,3,'0');
-  console.log("pn:",pn);
-  plotArrayToImage([Xs,Es],1024,512,`plots/fft_win2_${pn}.png`,1);
-  plotArrayToImage([x],1024,512,`plots/fft_win2_x_${pn}.png`,1);
-  plotArrayToImage([y],1024,512,`plots/fft_win2_y_${pn}.png`,1);
-  plotArrayToImage([s],1024,512,`plots/fft_win2_s_${pn}.png`,1);
-  plotArrayToImage([e],1024,512,`plots/fft_win2_e_${pn}.png`,1);    
+
+  //plotArrayToImage([Xs,Es],1024,512,`plots/fft_win2_${pn}.png`,1);
+  //plotArrayToImage([x],1024,512,`plots/fft_win2_x_${pn}.png`,1);
+  //plotArrayToImage([y],1024,512,`plots/fft_win2_y_${pn}.png`,1);
+  //plotArrayToImage([s],1024,512,`plots/fft_win2_s_${pn}.png`,1);
+  //plotArrayToImage([e],1024,512,`plots/fft_win2_e_${pn}.png`,1);    
 
 
   //     mu = H_error / (0.5* H_error* X2 + n * E2).
@@ -90,19 +93,13 @@ function echoCancel(ref,rec,coefs,chunkIndex,toUpdateCoefs) {
   const mu = new Float32Array(N);
   for(let i=0;i<N;i++) mu[i]=H_error[i] / (0.5 * H_error[i] * Xs[i] + 1 * Es[i]);
 
-  console.log("mu:",calcAveragePower(mu));
-  let maxmu=0;
-  for(let i=0;i<N;i++) {
-//    mu[i]=mu[i];
-    if(mu[i]>maxmu) {maxmu=mu[i];}
-  }
-  console.log("maxmu ",maxmu);
+  //console.log("mu:",calcAveragePower(mu));
 
   //     H_error = H_error - 0.5 * mu * X2 * H_error.
 
   for(let i=0;i<N;i++) H_error[i]-=(0.5 * mu[i] * Xs[i] * H_error[i]);
 
-  console.log("H_error:",H_error); 
+  //console.log("H_error:",H_error); 
 
   // G = mu * E
   const G = new Array(N);
@@ -115,7 +112,7 @@ function echoCancel(ref,rec,coefs,chunkIndex,toUpdateCoefs) {
     };
   }
 
-  console.log("G:",G);
+  //console.log("G:",G);
 
   // H(t+1)=H(t)+G(t)*conj(X(t)).
   //      H_p_ch.re[k] += X_p_ch.re[k] * G.re[k] + X_p_ch.im[k] * G.im[k];
@@ -125,15 +122,13 @@ function echoCancel(ref,rec,coefs,chunkIndex,toUpdateCoefs) {
       H[i].re += X[i].re * G[i].re + X[i].im * G[i].im;
       H[i].im += X[i].re * G[i].im - X[i].im * G[i].re;
     }
-    console.log("H updated:",H);
+    //console.log("H updated:",H);
   }
 
   const Hs=ifft_f(H);
 
-  plotArrayToImage([Hs],1024,512,`plots/fft_win2_Hs_${pn}.png`,1);
+  //plotArrayToImage([Hs],1024,512,`plots/fft_win2_Hs_${pn}.png`,1);
   const m=findMax(Hs);
-  console.log("findMax:",m);
-
 
   const estimated=new Float32Array(N/2);
   const canceled=new Float32Array(N/2);
@@ -143,7 +138,7 @@ function echoCancel(ref,rec,coefs,chunkIndex,toUpdateCoefs) {
     estimated[i]=s[i+startInd];
     canceled[i]=e[i+startInd];
   }
-  console.log("LLL:",estimated.length,canceled.length);
+
   const et=new Date().getTime();  
   return {canceled, estimated, dt:et-st, detectedDelay: m };
 }
@@ -153,10 +148,11 @@ function echoCancel(ref,rec,coefs,chunkIndex,toUpdateCoefs) {
 // refのエネルギーが小さいときに係数を更新しないようにしたら、見事におさまった。
 // 問題は、収束が遅いこと。50ループで30msしても、errPowerが0.001ぐらいある。 0.0001ぐらいにしたい。
 const chunk=loadLPCMFileSync("counting24k.lpcm");  // 元のデータ。これが再生用データ
+//const chunk=loadLPCMFileSync("long_a.lpcm");  // 元のデータ。これが再生用データ
 
 
 
-const delay=180; // このサンプル数だけ遅れて録音される。
+const delay=50; // このサンプル数だけ遅れて録音される。
 const rec=to_f_array(new Int16Array(chunk.buffer));
 const coefs=createComplexArray(unit); // フィルタ係数
 
@@ -165,8 +161,7 @@ const coefs=createComplexArray(unit); // フィルタ係数
 
 const finalSamples=new Float32Array(rec.length);
 const estimatedSamples=new Float32Array(rec.length);
-let chunkNum=Math.ceil(rec.length/unit);
-if(chunkNum>40) chunkNum=40;
+let chunkNum=Math.ceil(rec.length/chunkSize);
 
 for(let l=0;l<chunkNum;l++) {  
   const recChunk=new Float32Array(unit);
