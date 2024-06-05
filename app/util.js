@@ -516,6 +516,22 @@ function padNumber(number, width, paddingChar = ' ') {
   return number.toString().padStart(width, paddingChar);
 }
 
+function applyHannWindow(data) {
+  const length = data.length;
+  const hannWindow = new Float32Array(length);
+
+  // ハン窓の計算
+  for (let i = 0; i < length; i++) {
+    hannWindow[i] = 0.5 * (1 - Math.cos((2 * Math.PI * i) / (length - 1)));
+  }
+
+  // ハン窓をデータにかける
+  for (let i = 0; i < length; i++) {
+    data[i] *= hannWindow[i];
+  }
+
+  return data;
+}
 
 exports.getMaxValue=getMaxValue;
 exports.createJitterBuffer=createJitterBuffer;
@@ -557,3 +573,4 @@ exports.findMaxComplex=findMaxComplex;
 exports.createComplexArray=createComplexArray;
 exports.calcPowerSpectrum=calcPowerSpectrum;
 exports.padNumber=padNumber;
+exports.applyHannWindow=applyHannWindow;
