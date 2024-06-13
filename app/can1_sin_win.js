@@ -33,7 +33,7 @@ const {
 
 
 
-const chunkSize=256;
+const chunkSize=512;
 const unit=chunkSize*2; // 処理単位はチャンクサイズの2倍
 
 const H_error = new Float32Array(unit); // FIRフィルタの係数Hとは異なる。  Xと同じサイズが必要
