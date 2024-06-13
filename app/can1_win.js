@@ -36,7 +36,7 @@ const H_error = new Float32Array(unit); // FIRフィルタの係数Hとは異な
 for(let i=0;i<unit;i++) H_error[i]=10000; // AEC3から
 
 
-function echoCancel(ref,rec,coefs,chunkIndex,toUpdateCoefs) {
+function echoCancel(ref,rec,coefs,chunkIndex) {
   const st=new Date().getTime();
   const N=ref.length;
 
@@ -117,12 +117,9 @@ function echoCancel(ref,rec,coefs,chunkIndex,toUpdateCoefs) {
   // H(t+1)=H(t)+G(t)*conj(X(t)).
   //      H_p_ch.re[k] += X_p_ch.re[k] * G.re[k] + X_p_ch.im[k] * G.im[k];
   //      H_p_ch.im[k] += X_p_ch.re[k] * G.im[k] - X_p_ch.im[k] * G.re[k];
-  if(toUpdateCoefs) {
-    for(let i=0;i<N;i++) {
-      H[i].re += X[i].re * G[i].re + X[i].im * G[i].im;
-      H[i].im += X[i].re * G[i].im - X[i].im * G[i].re;
-    }
-    //console.log("H updated:",H);
+  for(let i=0;i<N;i++) {
+    H[i].re += X[i].re * G[i].re + X[i].im * G[i].im;
+    H[i].im += X[i].re * G[i].im - X[i].im * G[i].re;
   }
 
   const Hs=ifft_f(H);
@@ -168,8 +165,7 @@ for(let l=0;l<chunkNum;l++) {
   for(let i=0;i<unit;i++) recChunk[i]=rec[l*chunkSize+i-chunkSize/2]||0;
   const refChunk=new Float32Array(unit);
   for(let i=0;i<unit;i++) refChunk[i]=rec[l*chunkSize+i-delay-chunkSize/2]||0;
-  const toUpdateCoefs=true;//(l<5);
-  const ecOut=echoCancel(refChunk,recChunk,coefs,l,toUpdateCoefs);
+  const ecOut=echoCancel(refChunk,recChunk,coefs,l);
   const recP=calcAveragePower(recChunk);
   const refP=calcAveragePower(refChunk);
   const canP=calcAveragePower(ecOut.canceled);
