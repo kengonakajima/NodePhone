@@ -13,3 +13,6 @@ fft_*.lpcm
 fir_filter_diff.lpcm
 playcancel_*.lpcm16
 playcancel_*.pcm
+g_*Rec.lpcm16
+*_rec.pcm
+*_ref.pcm
