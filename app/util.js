@@ -387,7 +387,7 @@ function plotArrayToImage(data_list, width, height, outputFilename,scale=1) {
   ctx.lineTo(width - 20, height/2);
   ctx.stroke();
 
-  const colors=['blue','red','green','orange','purple','black','gray'];
+  const colors=['red','green','blue','orange','purple','black','gray'];
   // データをプロット
   const l=data_list[0].length;  
   for(let di=0;di<data_list.length;di++) {
@@ -519,6 +519,8 @@ function padNumber(number, width, paddingChar = ' ') {
 function applyHannWindow(data) {
   const length = data.length;
   const hannWindow = new Float32Array(length);
+  const out=new Float32Array(data.length);
+  for(let i=0;i<data.length;i++) out[i]=data[i];
 
   // ハン窓の計算
   for (let i = 0; i < length; i++) {
@@ -527,11 +529,27 @@ function applyHannWindow(data) {
 
   // ハン窓をデータにかける
   for (let i = 0; i < length; i++) {
-    data[i] *= hannWindow[i];
+    out[i] *= hannWindow[i];
   }
 
-  return data;
+  return out;
 }
+
+function highpassFilter(inputSignal, sampleRate, cutoffFrequency) {
+  const RC = 1.0 / (2 * Math.PI * cutoffFrequency);
+  const dt = 1.0 / sampleRate;
+  const alpha = RC / (RC + dt);
+
+  const outputSignal = new Float32Array(inputSignal.length);
+  outputSignal[0] = inputSignal[0];
+
+  for (let i = 1; i < inputSignal.length; i++) {
+    outputSignal[i] = alpha * (outputSignal[i - 1] + inputSignal[i] - inputSignal[i - 1]);
+  }
+
+  return outputSignal;
+}
+
 
 exports.getMaxValue=getMaxValue;
 exports.createJitterBuffer=createJitterBuffer;
@@ -574,3 +592,4 @@ exports.createComplexArray=createComplexArray;
 exports.calcPowerSpectrum=calcPowerSpectrum;
 exports.padNumber=padNumber;
 exports.applyHannWindow=applyHannWindow;
+exports.highpassFilter=highpassFilter;
