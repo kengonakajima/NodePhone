@@ -5,7 +5,7 @@ const {
   to_f
  
 } = require('./util.js');
-const freq=48000; // aec3の必要条件
+const freq=16000; // aec3の必要条件
 
 
 const {
@@ -16,8 +16,8 @@ const {
 aec3Wrapper.setFrequency(freq);
 console.log("aec3Wrapper:",aec3Wrapper);
 
-const played=loadLPCMFileSync("counting48k.lpcm");  // 元のデータ。これが再生用データ
-const recorded=loadLPCMFileSync("playRecCounting48k.lpcm16");  // counting48k.lpcmをplayrec.jsで録音した48KHzのデータ
+const played=loadLPCMFileSync("counting48k.lpcm").slice(0,50000);  // 元のデータ。これが再生用データ
+const recorded=loadLPCMFileSync("playRecCounting48k.lpcm16").slice(0,50000);  // counting48k.lpcmをplayrec.jsで録音した48KHzのデータ
 
 const chunkSize=aec3Wrapper.samples_per_frame;
 
@@ -39,7 +39,8 @@ setInterval(function() {
       aec3Wrapper.update_rec_frame(recChunk); // 録音サンプルをAECに渡す
       aec3Wrapper.update_ref_frame(refChunk); // 前回記録した参照バッファをAECに渡す
       const processed=new Int16Array(chunkSize);
-      aec3Wrapper.process(80,processed,1); // AECの実際の処理を実行する
+      console.log("Starting chunk process:",l);
+      aec3Wrapper.process(80,processed,0); // AECの実際の処理を実行する
 
       for(let i=0;i<processed.length;i++) {
         finalOut[startIndex+i]=to_f(processed[i]);
@@ -47,9 +48,10 @@ setInterval(function() {
       const enh=aec3Wrapper.get_metrics_echo_return_loss_enhancement(); // 統計情報を取得
 
       // デバッグ表示
-      console.log("rec:",getVolumeBar(getMaxValue(recChunk)),
-                  "ref:",getVolumeBar(getMaxValue(refChunk)),
-                  "out:",getVolumeBar(getMaxValue(processed)),
+      console.log("chunk:",l,
+                  "rec:",getMaxValue(recChunk),
+                  "ref:",getMaxValue(refChunk),
+                  "out:",getMaxValue(processed),
                   "enh:",enh,
                   "voice:", aec3Wrapper.get_voice_probability());
     }
