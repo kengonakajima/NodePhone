@@ -18,7 +18,7 @@ aec3.onRuntimeInitialized = () => {
     if(this.workmem)return;
     assert(this.freq>0);
     assert(this.samples_per_frame>0);    
-    this.workmem = aec3._malloc(this.samples_per_frame*2);
+    this.workmem = aec3._aec3_malloc(this.samples_per_frame*2);
     return this.workmem;
   }
   aec3Wrapper.update_ref_frame = function(i16ary) {
@@ -50,9 +50,9 @@ aec3.onRuntimeInitialized = () => {
     const data=aec3.HEAP16.subarray(this.workmem/2,this.workmem/2+this.samples_per_frame);
     for(let i=0;i<this.samples_per_frame;i++)i16ary[i]=data[i];
   }
-  aec3Wrapper.debug_print();
+//  aec3Wrapper.debug_print();
   assert(aec3Wrapper.freq==16000 || aec3Wrapper.freq==32000 || aec3Wrapper.freq==48000);
-  aec3Wrapper.init(4,0,1,aec3Wrapper.freq); // NS level 4, no loopback, vad=on
+  aec3Wrapper.init(/*ns*/0,/*loopback*/0,/*vad*/0,aec3Wrapper.freq); 
   aec3Wrapper.initialized=true;  
   
 }
@@ -122,9 +122,9 @@ function createJitterBuffer(jitter) {
 
 function getMaxValue(ary){
   if(ary.length==0) return 0;
-  let maxv=-9999999;
-  for(let i in ary) {
-    if(ary[i]>maxv) maxv=ary[i];
+  let maxv=0;
+  for(let i=0;i<ary.length;i++) {
+    if(ary[i]>Math.abs(maxv)) maxv=Math.abs(ary[i]);
   }
   return maxv;
 }
@@ -160,6 +160,16 @@ function to_s_array(f_ary) {
   return out;  
 }
 
+// aec3形式の、-32768~32768までのfloat値の配列をlpcmで保存する
+function save_fs(buf,path) {
+  const n = buf.length;
+  const sb = new Int16Array(n);
+
+  for (let i = 0; i < n; i++) {
+    sb[i] = Math.floor(buf[i]);
+  }
+  fs.writeFileSync(path, Buffer.from(sb.buffer));
+}
 function save_f(buf, path) {
   const n = buf.length;
   const sb = new Int16Array(n);
@@ -302,6 +312,27 @@ function to_c_array(floats) {
   return out;
 }
 
+function energyBar(s,num,scale=1) {
+  const out=[];
+  for(let i=0;i<num;i++) out[i]=' ';
+  const step=s.length/num;  
+  for(let i=0;i<s.length;i++) {
+    const outi=parseInt(i/step);
+    let e=s[i] * scale;
+    if(e<0)e*=-1;
+    if(e>out[outi])out[outi]=e;
+  }
+  for(let i=0;i<num;i++) {
+    if(out[i]>1) out[i]='*';
+    else if(out[i]>0.5) out[i]='+';
+    else if(out[i]>0.2) out[i]='-';
+    else if(out[i]>0.05) out[i]='.';
+    else out[i]=' ';
+  }
+  
+  return out.join("");
+  
+}
 function spectrumBar(s,num,scale=1) {
   const out=[];
   for(let i=0;i<num;i++) out[i]=' ';
@@ -369,8 +400,11 @@ function plotArrayToImage(data_list, width, height, outputFilename,scale=1) {
   const canvas = createCanvas(width, height);
   const ctx = canvas.getContext('2d');
 
+  const outDataList=[];
   for(const data of data_list) {
-    for(let i=0;i<data.length;i++) data[i]=data[i]*scale;
+    const outData=new Float32Array(data.length);
+    for(let i=0;i<data.length;i++) outData[i]=data[i]*scale;
+    outDataList.push(outData);
   }
 
   
@@ -389,9 +423,9 @@ function plotArrayToImage(data_list, width, height, outputFilename,scale=1) {
 
   const colors=['red','green','blue','orange','purple','black','gray'];
   // データをプロット
-  const l=data_list[0].length;  
-  for(let di=0;di<data_list.length;di++) {
-    const data=data_list[di];
+  const l=outDataList[0].length;  
+  for(let di=0;di<outDataList.length;di++) {
+    const data=outDataList[di];
     ctx.strokeStyle = colors[di];
     ctx.lineWidth = 1;
     ctx.beginPath();
@@ -489,6 +523,19 @@ function findMax(array,skipTop=0) {
   return {index: out_ind, value: max};
 }
 
+function findMaxSquare(array,skipTop=0) {
+  let max=0;
+  let out_ind=-1;
+  for(let i=skipTop;i<array.length;i++) {
+    const v=array[i]*array[i];
+    if(v>max) {
+      out_ind=i;
+      max=v;
+    }
+  }
+  return {index: out_ind, value: max};
+}
+
 function createComplexArray(n) {
   const out=new Array(n);
   for(let i=0;i<n;i++) out[i]={re:0, im:0};
@@ -550,6 +597,13 @@ function highpassFilter(inputSignal, sampleRate, cutoffFrequency) {
   return outputSignal;
 }
 
+// 整数個単位でのdecimate専用
+function decimateFloat32Array(ary,factor) {
+  const n=Math.floor(ary.length/factor);
+  const out=new Float32Array(n);
+  for(let i=0;i<n;i++)out[i]=ary[i*factor];
+  return out;
+}
 
 exports.getMaxValue=getMaxValue;
 exports.createJitterBuffer=createJitterBuffer;
@@ -564,6 +618,7 @@ exports.to_s=to_s;
 exports.to_f_array=to_f_array;
 exports.to_s_array=to_s_array;
 exports.save_f = save_f;
+exports.save_fs = save_fs;
 exports.append_f = append_f;
 exports.rm=rm;
 exports.calcERLE = calcERLE;
@@ -576,6 +631,7 @@ exports.ifft=ifft;
 exports.ifft_f=ifft_f;
 exports.to_c_array=to_c_array;
 exports.fft_f=fft_f;
+exports.energyBar=energyBar;
 exports.spectrumBar=spectrumBar;
 exports.multiplyComplex=multiplyComplex;
 exports.multiplyComplexArray=multiplyComplexArray;
@@ -587,9 +643,11 @@ exports.loadLPCMFileSync=loadLPCMFileSync;
 exports.firFilter=firFilter;
 exports.firFilterFFT=firFilterFFT;
 exports.findMax=findMax;
+exports.findMaxSquare=findMaxSquare;
 exports.findMaxComplex=findMaxComplex;
 exports.createComplexArray=createComplexArray;
 exports.calcPowerSpectrum=calcPowerSpectrum;
 exports.padNumber=padNumber;
 exports.applyHannWindow=applyHannWindow;
 exports.highpassFilter=highpassFilter;
+exports.decimateFloat32Array=decimateFloat32Array;
