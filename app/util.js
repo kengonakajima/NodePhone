@@ -396,6 +396,41 @@ function conjugate(complexArray) {
 }
 
 
+// x軸:時間 y軸:要素 
+function drawSpectrogram(data_list,outputFilename,scale=1) {
+
+  const pxSz=4;
+
+  const outDataList=[];
+  for(const data of data_list) {
+    const outData=new Float32Array(data.length);
+    for(let i=0;i<data.length;i++) outData[i]=data[i]*scale;
+    outDataList.push(outData);
+  }
+  const height=data_list[0].length*pxSz;
+  const width=data_list.length*pxSz;
+  const canvas = createCanvas(width, height);
+  const ctx = canvas.getContext('2d');
+  
+  ctx.fillStyle='black';
+  ctx.fillRect(0,0,width,height);
+
+  for(let x=0;x<outDataList.length;x++) {
+    for(let y=0;y<outDataList[0].length;y++) {
+      const data=outDataList[x][y];
+      let val=Math.floor(data*256);
+      if(val>255) val=255;
+      const hex=val<16 ? "0"+val.toString(16) : val.toString(16);
+      ctx.fillStyle=`#${hex}${hex}${hex}`;
+      ctx.fillRect(x*pxSz,y*pxSz,pxSz,pxSz);
+    }
+  }
+  // 画像をファイルに保存
+  const buffer = canvas.toBuffer('image/png');
+  fs.writeFileSync(outputFilename, buffer);
+  
+  
+}
 function plotArrayToImage(data_list, width, height, outputFilename,scale=1) {
   const canvas = createCanvas(width, height);
   const ctx = canvas.getContext('2d');
@@ -651,3 +686,4 @@ exports.padNumber=padNumber;
 exports.applyHannWindow=applyHannWindow;
 exports.highpassFilter=highpassFilter;
 exports.decimateFloat32Array=decimateFloat32Array;
+exports.drawSpectrogram=drawSpectrogram;
