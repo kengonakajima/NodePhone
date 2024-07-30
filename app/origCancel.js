@@ -93,6 +93,25 @@ function matchedFilterCore(xStartIndex,x2SumThreshold,smoothing,x,y,h) {
         if(ah>maxH) { maxH=ah; maxHInd=i; }
       }
       console.log("maxH':",maxH,"maxHInd':",maxHInd);
+
+      if(ec.cnt==235){
+        const toPlot=new Float32Array(ec.renderBuffer.bufferHigh.buf.length);
+        for(let i=0;i<toPlot.length;i++) toPlot[i]=ec.renderBuffer.bufferHigh.buf[i];
+        toPlot[ec.renderBuffer.bufferHigh.read]=30000;
+        toPlot[ec.renderBuffer.bufferHigh.write]=-30000;        
+        plotArrayToImage([toPlot],ec.renderBuffer.bufferHigh.buf.length,512,`plots/bufferHigh_${ec.cnt}.png`,1/32768.0);
+
+        const toPlotLow=new Float32Array(ec.renderBuffer.bufferLowReversed.buf.length);
+        for(let i=0;i<toPlotLow.length;i++) toPlotLow[i]=ec.renderBuffer.bufferLowReversed.buf[i];
+        toPlotLow[ec.renderBuffer.bufferLowReversed.read]=30000;
+        toPlotLow[ec.renderBuffer.bufferLowReversed.write]=-30000;
+        plotArrayToImage([toPlotLow],ec.renderBuffer.bufferLowReversed.buf.length,512,`plots/bufferLow_${ec.cnt}.png`,1/32768.0);
+
+        plotArrayToImage([ec.filters[2]],1024,512,`plots/filters_2_${ec.cnt}.png`,1);
+      }
+
+
+      
       filterUpdated=true;
     }
     xStartIndex = xStartIndex > 0 ? xStartIndex - 1 : x.length - 1; // 逆順なので一周したら末尾に戻す。
@@ -123,6 +142,7 @@ function createOrigEC(freq) {
   ec.xStartOfs=0; //ec.refのどの位置から読むか
 
   ec.cnt=0;
+  ec.blockCnt=0;
   
   ec.ref=[]; // 全部ため続ける(単純のため)
   ec.rec=[]; // processが終わったら削除する。
@@ -135,7 +155,7 @@ function createOrigEC(freq) {
     // read: 最初に書いたときに writeが2416になり、そのときに同じ値になるようにしておく。    
     bufferLowReversed: createSampleBuffer(2448,2432,2432),
     // decimateしない元の信号用. Adaptive FIR Filter用。 正順
-    bufferHigh: createSampleBuffer(2448*4,2432*4,2432*4),
+    bufferHigh: createSampleBuffer(2448*4,0,0),
     copyBlockLowReversed: function(sbReversed) {
       if(sbReversed.length!=16) throw "invalid_size";
       for(let i=0;i<16;i++) this.bufferLowReversed.buf[this.bufferLowReversed.write+i]=sbReversed[i];
@@ -183,6 +203,9 @@ function createOrigEC(freq) {
 
   ec.debugLowRef=[];
   ec.debugLowRec=[];
+  ec.debugHighRef=[];
+  ec.debugHighRec=[];
+  ec.hoge=[];
 
   ec.maxCoreOutErrorSum=0;
   ec.totalCoreOutErrorSum=0;
@@ -226,10 +249,17 @@ function createOrigEC(freq) {
         ec.renderBuffer.copyBlockLowReversed(refLowBlockReversed);
         //ec.renderBuffer.dumpBuffer();
         ec.renderBuffer.incrementReadIndexLowReversed();
+        ec.renderBuffer.copyBlockHigh(refBlock);
+
+        
         // デバッグ用の記録
         for(let i=0;i<subBlockSize;i++) {
           ec.debugLowRec.push(recLowBlock[i]);
-          ec.debugLowRef.push(refLowBlockReversed[subBlockSize-1-i]);
+          ec.debugLowRef.push(refLowBlockReversed[subBlockSize-1-i]); // 逆順
+        }
+        for(let i=0;i<blockSize;i++) {
+          ec.debugHighRec.push(recBlock[i]);
+          ec.debugHighRef.push(refBlock[i]);
         }
 
         let errorSumAnchor = 0.0;
@@ -295,13 +325,21 @@ function createOrigEC(freq) {
           console.log("candidateLatencyBlocks:",candidateLatencyBlocks);
           console.log("ec.totalLatencyBlocks:",ec.totalLatencyBlocks,"subBlockSize:",subBlockSize);
         }
-        if(ec.totalLatencyBlocks) {
-          // renderBufferは逆順
-          console.log("RRRR:",ec.renderBuffer.bufferLowReversed.read);
-        }
 
+        if(ec.totalLatencyBlocks>0) {
+          // ここに来たということは、MatchedFilterの推定が完了している。
+          // renderBufferは逆順
+          // 次に読む信号は、 writeの位置から 遅延ブロック数 * 64 サンプル古いもの。
+          let readPos=ec.renderBuffer.bufferHigh.write - ec.totalLatencyBlocks * 64;
+          if(readPos<0) readPos+=ec.renderBuffer.bufferHigh.buf.length;
+          for(let i=0;i<blockSize;i++) ec.hoge.push(ec.renderBuffer.bufferHigh.buf[readPos+i]);
+          console.log("RRRR: low:",ec.renderBuffer.bufferLowReversed.read,ec.renderBuffer.bufferLowReversed.write,"high:",ec.renderBuffer.bufferHigh.read, ec.renderBuffer.bufferHigh.write,"totalLatencyBlocks:",ec.totalLatencyBlocks,"cnt:",ec.cnt,"blockCnt:",ec.blockCnt,"readPos:",readPos,"debugHighRef:",ec.debugHighRef.length,"debugHighRec:",ec.debugHighRec.length);
+        } else {
+          for(let i=0;i<blockSize;i++) ec.hoge.push(0);          
+        }
         
         for(let i=0;i<blockSize;i++) ec.out.push(recBlock[i]);
+        ec.blockCnt++;        
       } // version 1
 
       // 出力
@@ -365,4 +403,9 @@ save_f(finalOut,"origStatic.lpcm16");
 
 save_fs(ec.debugLowRef,"debugLowRef.lpcm16");
 save_fs(ec.debugLowRec,"debugLowRec.lpcm16");
+save_fs(ec.debugHighRef,"debugHighRef.lpcm16");
+save_fs(ec.debugHighRec,"debugHighRec.lpcm16");
+save_fs(ec.hoge,"hoge.lpcm16");
+
+
 
