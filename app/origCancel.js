@@ -97,24 +97,6 @@ function matchedFilterCore(xStartIndex,x2SumThreshold,smoothing,x,y,h) {
         if(ah>maxH) { maxH=ah; maxHInd=i; }
       }
       console.log("maxH':",maxH,"maxHInd':",maxHInd);
-
-      if(ec.cnt==235){
-        const toPlot=new Float32Array(ec.renderBuffer.bufferHigh.buf.length);
-        for(let i=0;i<toPlot.length;i++) toPlot[i]=ec.renderBuffer.bufferHigh.buf[i];
-        toPlot[ec.renderBuffer.bufferHigh.read]=30000;
-        toPlot[ec.renderBuffer.bufferHigh.write]=-30000;        
-        plotArrayToImage([toPlot],ec.renderBuffer.bufferHigh.buf.length,512,`plots/bufferHigh_${ec.cnt}.png`,1/32768.0);
-
-        const toPlotLow=new Float32Array(ec.renderBuffer.bufferLowReversed.buf.length);
-        for(let i=0;i<toPlotLow.length;i++) toPlotLow[i]=ec.renderBuffer.bufferLowReversed.buf[i];
-        toPlotLow[ec.renderBuffer.bufferLowReversed.read]=30000;
-        toPlotLow[ec.renderBuffer.bufferLowReversed.write]=-30000;
-        plotArrayToImage([toPlotLow],ec.renderBuffer.bufferLowReversed.buf.length,512,`plots/bufferLow_${ec.cnt}.png`,1/32768.0);
-
-        plotArrayToImage([ec.filters[2]],1024,512,`plots/filters_2_${ec.cnt}.png`,1);
-      }
-
-
       
       filterUpdated=true;
     }
@@ -135,15 +117,19 @@ function createSampleBuffer(n,readInit,writeInit) {
   };
   return out;
 }
+function createMatchedFilter(filterNum,filterSize) {
+  const f={
+    filters: new Array(filterNum),
+    filterSize,
+  };
+  for(let i=0;i<filterNum;i++) f.filters[i]=new Float32Array(filterSize);   
+  return f;
+}
 function createOrigEC(freq) {
   const ec={};
   ec.samples_per_frame= Math.floor(freq/100);
   // AEC3では[512]x5
-  const filterSize=512;
-  const filterNum=5;
-  ec.filters=new Array(5);
-  for(let i=0;i<filterNum;i++) ec.filters[i]=new Float32Array(filterSize); 
-  ec.xStartOfs=0; //ec.refのどの位置から読むか
+  ec.mf = createMatchedFilter(5,512); 
 
   ec.cnt=0;
   ec.blockCnt=0;
@@ -272,25 +258,25 @@ function createOrigEC(freq) {
         let winnerIndex=-1;
         let winnerLag=-1;
         let alignmentShift=0;
-        for(let n=0;n<ec.filters.length;n++) {
+        for(let n=0;n<ec.mf.filters.length;n++) {
           const x2SumThreshold=512 * 150 * 150; // aec3. 512はフィルタサイズで　150は音量
           // xStartIndexは2431から始まる
           let xStartIndex = (ec.renderBuffer.bufferLowReversed.read + alignmentShift + subBlockSize - 1 ) % ec.renderBuffer.bufferLowReversed.buf.length;
           console.log("calling matchedFilterCore xStartIndex:",xStartIndex,"n:",n);
           const smoothing=0.7;
           const y=recLowBlock;
-          const coreOut=matchedFilterCore(xStartIndex,x2SumThreshold,smoothing,ec.renderBuffer.bufferLowReversed.buf,y,ec.filters[n]);
+          const coreOut=matchedFilterCore(xStartIndex,x2SumThreshold,smoothing,ec.renderBuffer.bufferLowReversed.buf,y,ec.mf.filters[n]);
 
           // フィルタのピークを監視して、遅延を推定する
           const matchingFilterThreshold=0.2; //aec3
-          let lagEstimate = maxSquarePeakIndex(ec.filters[n]);
-          let reliable = lagEstimate > 2 && lagEstimate < (ec.filters[n].length - 10) &&
+          let lagEstimate = maxSquarePeakIndex(ec.mf.filters[n]);
+          let reliable = lagEstimate > 2 && lagEstimate < (ec.mf.filters[n].length - 10) &&
               coreOut.errorSum < matchingFilterThreshold * errorSumAnchor;
           const lag=lagEstimate + alignmentShift;
           
           console.log("lagEstimate:",lagEstimate,"reliable:",reliable,"lag:",lag);
           if(reliable) {
-            plotArrayToImage([ec.filters[n]],1024,512,`plots/origcancel_reliable_${ec.cnt}_${n}.png`,1);
+            plotArrayToImage([ec.mf.filters[n]],1024,512,`plots/origcancel_reliable_${ec.cnt}_${n}.png`,1);
           }
           // ここまででフィルタのピークの位置を特定できている。勝者を選択する
           if(coreOut.filterUpdated && reliable && coreOut.errorSum < winnerErrorSum) {
