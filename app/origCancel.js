@@ -13,9 +13,13 @@ const {
   save_fs,
   getMaxValue,
   decimateFloat32Array,
+  createComplexArray,
   loadLPCMFileSync,
   to_f,
-  save_f
+  save_f,
+  paddedFft,
+  f2cArray,
+  fft_to_s
 } = require('./util.js');
 const freq=16000; 
 
@@ -193,9 +197,6 @@ function createOrigEC(freq) {
     for(let i=0;i<ref.length;i++) ec.ref.push(ref[i]);
   }
 
-  ec.filters=[];
-  for(let i=0;i<5;i++) ec.filters[i]=new Float32Array(512); 
-
   ec.histogramData=new Int16Array(250); // aec3 MatchedFilterの推定値の単純な履歴
   ec.histogram=new Int16Array(19*128+1); // aec3 renderBufferのサイズが 19*128+16。対応できる最大の遅延。
   ec.histogramDataIndex=0;
@@ -206,6 +207,7 @@ function createOrigEC(freq) {
   ec.debugHighRef=[];
   ec.debugHighRec=[];
   ec.hoge=[];
+  ec.delayLog=[];
 
   ec.maxCoreOutErrorSum=0;
   ec.totalCoreOutErrorSum=0;
@@ -334,11 +336,20 @@ function createOrigEC(freq) {
           if(readPos<0) readPos+=ec.renderBuffer.bufferHigh.buf.length;
           for(let i=0;i<blockSize;i++) ec.hoge.push(ec.renderBuffer.bufferHigh.buf[readPos+i]);
           console.log("RRRR: low:",ec.renderBuffer.bufferLowReversed.read,ec.renderBuffer.bufferLowReversed.write,"high:",ec.renderBuffer.bufferHigh.read, ec.renderBuffer.bufferHigh.write,"totalLatencyBlocks:",ec.totalLatencyBlocks,"cnt:",ec.cnt,"blockCnt:",ec.blockCnt,"readPos:",readPos,"debugHighRef:",ec.debugHighRef.length,"debugHighRec:",ec.debugHighRec.length);
+
+          // AFIRFで精密に推定する
+          const x=f2cArray(refBlock);
+          const x_old=ec.x_old ? ec.x_old : createComplexArray(refBlock.length);
+          const X=paddedFft(x,x_old);
+          ec.x_old=x;
+          console.log("XXXX:",X);
+          
         } else {
           for(let i=0;i<blockSize;i++) ec.hoge.push(0);          
         }
-        
-        for(let i=0;i<blockSize;i++) ec.out.push(recBlock[i]);
+        for(let i=0;i<blockSize;i++) ec.delayLog.push(ec.totalLatencyBlocks*100);
+
+
         ec.blockCnt++;        
       } // version 1
 
@@ -401,11 +412,13 @@ for(let l=0;;l++) {
 console.log("done");
 save_f(finalOut,"origStatic.lpcm16");
 
+// debug saves
 save_fs(ec.debugLowRef,"debugLowRef.lpcm16");
 save_fs(ec.debugLowRec,"debugLowRec.lpcm16");
 save_fs(ec.debugHighRef,"debugHighRef.lpcm16");
 save_fs(ec.debugHighRec,"debugHighRec.lpcm16");
 save_fs(ec.hoge,"hoge.lpcm16");
+save_fs(ec.delayLog,"delayLog.lpcm16");
 
 
 
