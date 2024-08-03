@@ -316,7 +316,16 @@ function paddedFft(x,x_old) {
   }
   return fft(data);
 }
-function zeroPaddedFft(window,x) {
+// x: C[64] 前半は0,後半はxを入れるが、ハニング窓[64]をかける。
+function zeroPaddedHanningFft(x) {
+  if(x.length!=64) throw "invalid_size";  
+  const data=createComplexArray(128);
+  for(let i=0;i<64;i++) {
+    data[i].re=0;
+    data[i+64].re=x[i].re * kHanning64[i];
+  }
+  //console.log("data:",data.join(","),kHanning64);
+  return fft(data);
   
 }
 function fft_to_s(fft) {
@@ -737,3 +746,4 @@ exports.highpassFilter=highpassFilter;
 exports.decimateFloat32Array=decimateFloat32Array;
 exports.drawSpectrogram=drawSpectrogram;
 exports.kHanning64=kHanning64
+exports.zeroPaddedHanningFft=zeroPaddedHanningFft;
