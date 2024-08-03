@@ -18,6 +18,7 @@ const {
   to_f,
   save_f,
   paddedFft,
+  ifft,
   f2cArray,
   fft_to_s
 } = require('./util.js');
@@ -125,11 +126,40 @@ function createMatchedFilter(filterNum,filterSize) {
   for(let i=0;i<filterNum;i++) f.filters[i]=new Float32Array(filterSize);   
   return f;
 }
+function createAdaptiveFIRFilter() {
+  const f={
+    H: createComplexArray(128)
+  };
+  f.applyFilter=function(X) {
+    if(X.length!=128) throw "invalid_size";
+    const S=createComplexArray(128);
+    // まず partitionなしで試しているのでループは1重
+    for(let i=0;i<128;i++) {
+      S[i].re+=X[i].re * this.H[i].re - X[i].im * this.H[i].im;
+      S[i].im+=X[i].re * this.H[i].im + X[i].im * this.H[i].re;
+    }
+    return S;
+  }
+  return f;
+}
+//y:float[64] S:fftdata[128]
+function predictionError(S,y) {
+  if(S.length!=128) throw "invalid_size";
+  if(y.length!=64) throw "invalid_size";
+  const e=new Float32Array(64);
+  const _s=ifft(S);
+  const scale=1.0/64.0; // 128.0ではなく。 AEC3がそうなってる
+  for(let i=0;i<64;i++) {
+    e[i]=y[i]-_s[i].re*scale;
+  }
+  return e;
+}
 function createOrigEC(freq) {
   const ec={};
   ec.samples_per_frame= Math.floor(freq/100);
   // AEC3では[512]x5
-  ec.mf = createMatchedFilter(5,512); 
+  ec.mf=createMatchedFilter(5,512);
+  ec.af=createAdaptiveFIRFilter();
 
   ec.cnt=0;
   ec.blockCnt=0;
@@ -326,9 +356,13 @@ function createOrigEC(freq) {
           // AFIRFで精密に推定する
           const x=f2cArray(refBlock);
           const x_old=ec.x_old ? ec.x_old : createComplexArray(refBlock.length);
-          const X=paddedFft(x,x_old);
+          const X=paddedFft(x,x_old); // X: C[128]
           ec.x_old=x;
-          console.log("XXXX:",X);
+          console.log("X:",X);
+          const S=ec.af.applyFilter(X);
+          console.log("S:",S.length,S);
+          const e=predictionError(S,recBlock);
+          console.log("pred e:",e);
           
         } else {
           for(let i=0;i<blockSize;i++) ec.hoge.push(0);          
