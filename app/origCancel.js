@@ -20,7 +20,8 @@ const {
   paddedFft,
   ifft,
   f2cArray,
-  fft_to_s
+  fft_to_s,
+  zeroPaddedHanningFft
 } = require('./util.js');
 const freq=16000; 
 
@@ -354,7 +355,7 @@ function createOrigEC(freq) {
           console.log("RRRR: low:",ec.renderBuffer.bufferLowReversed.read,ec.renderBuffer.bufferLowReversed.write,"high:",ec.renderBuffer.bufferHigh.read, ec.renderBuffer.bufferHigh.write,"totalLatencyBlocks:",ec.totalLatencyBlocks,"cnt:",ec.cnt,"blockCnt:",ec.blockCnt,"readPos:",readPos,"debugHighRef:",ec.debugHighRef.length,"debugHighRec:",ec.debugHighRec.length);
 
           // AFIRFで精密に推定する
-          const x=f2cArray(refBlock);
+          const x=f2cArray(refBlock); // f[64]を C[64] に変換
           const x_old=ec.x_old ? ec.x_old : createComplexArray(refBlock.length);
           const X=paddedFft(x,x_old); // X: C[128]
           ec.x_old=x;
@@ -363,6 +364,9 @@ function createOrigEC(freq) {
           console.log("S:",S.length,S);
           const e=predictionError(S,recBlock);
           console.log("pred e:",e);
+          const e_=f2cArray(e);
+          const E=zeroPaddedHanningFft(e_);
+          console.log("pred E:",E,e_);
           
         } else {
           for(let i=0;i<blockSize;i++) ec.hoge.push(0);          
