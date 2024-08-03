@@ -305,6 +305,26 @@ function fft_f(floats) {
   return G;
 }
 
+
+function paddedFft(x,x_old) {
+  if(x.length!=64) throw "invalid_size";
+  if(x_old.length!=64) throw "invalid_size";
+  const data=[];
+  for(let i=0;i<64;i++) {
+    data[i]=x_old[i];
+    data[i+64]=x[i];
+  }
+  return fft(data);
+}
+function zeroPaddedFft(window,x) {
+  
+}
+function fft_to_s(fft) {
+  const a=[];
+  for(const c of fft) a.push(`(${c.re},${c.im})`);
+  return a.join(",");
+}
+
 // float to {re,im}
 function to_c_array(floats) {
   const out=new Array(floats.length);
@@ -571,6 +591,11 @@ function findMaxSquare(array,skipTop=0) {
   return {index: out_ind, value: max};
 }
 
+function f2cArray(fa) {
+  const ca=createComplexArray(fa.length);
+  for(let i=0;i<fa.length;i++) ca[i].re=fa[i];
+  return ca;
+}
 function createComplexArray(n) {
   const out=new Array(n);
   for(let i=0;i<n;i++) out[i]={re:0, im:0};
@@ -640,6 +665,27 @@ function decimateFloat32Array(ary,factor) {
   return out;
 }
 
+
+// from aec3
+const kHanning64 = [
+  0,         0.00248461, 0.00991376, 0.0222136,  0.03926189,
+  0.06088921, 0.08688061, 0.11697778, 0.15088159, 0.1882551,
+  0.22872687, 0.27189467, 0.31732949, 0.36457977, 0.41317591,
+  0.46263495, 0.51246535, 0.56217185, 0.61126047, 0.65924333,
+  0.70564355, 0.75,       0.79187184, 0.83084292, 0.86652594,
+  0.89856625, 0.92664544, 0.95048443, 0.96984631, 0.98453864,
+  0.99441541, 0.99937846, 0.99937846, 0.99441541, 0.98453864,
+  0.96984631, 0.95048443, 0.92664544, 0.89856625, 0.86652594,
+  0.83084292, 0.79187184, 0.75,       0.70564355, 0.65924333,
+  0.61126047, 0.56217185, 0.51246535, 0.46263495, 0.41317591,
+  0.36457977, 0.31732949, 0.27189467, 0.22872687, 0.1882551,
+  0.15088159, 0.11697778, 0.08688061, 0.06088921, 0.03926189,
+  0.0222136,  0.00991376, 0.00248461, 0
+];
+
+
+
+
 exports.getMaxValue=getMaxValue;
 exports.createJitterBuffer=createJitterBuffer;
 exports.aec3Wrapper = aec3Wrapper;
@@ -664,6 +710,8 @@ exports.totMag=totMag;
 exports.fft=fft;
 exports.ifft=ifft;
 exports.ifft_f=ifft_f;
+exports.paddedFft=paddedFft;
+exports.fft_to_s=fft_to_s;
 exports.to_c_array=to_c_array;
 exports.fft_f=fft_f;
 exports.energyBar=energyBar;
@@ -681,9 +729,11 @@ exports.findMax=findMax;
 exports.findMaxSquare=findMaxSquare;
 exports.findMaxComplex=findMaxComplex;
 exports.createComplexArray=createComplexArray;
+exports.f2cArray=f2cArray;
 exports.calcPowerSpectrum=calcPowerSpectrum;
 exports.padNumber=padNumber;
 exports.applyHannWindow=applyHannWindow;
 exports.highpassFilter=highpassFilter;
 exports.decimateFloat32Array=decimateFloat32Array;
 exports.drawSpectrogram=drawSpectrogram;
+exports.kHanning64=kHanning64
