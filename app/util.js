@@ -305,28 +305,53 @@ function fft_f(floats) {
   return G;
 }
 
+// C[65]を C[128]に変換する。
+function fromFftData(fftData) {
+  const out=createComplexArray(128);
+  for(let i=0;i<65;i++) out[i]=fftData[i];
+  for(let i=0;i<63;i++) out[64+i]={re: fftData[63-i].re, im: fftData[63-i].im * -1 };
+  return out;  
+}
 
+// C[128]を C[65]に変換する
+function toFftData(fftResult) {
+  if(fftResult.length!=128) throw "invalid_size_toFftData";
+  return fftResult.slice(0,65);
+}
+// 時間領域64個(floats)を2つ受け取って128のFFTをし、先頭の65個を返す
 function paddedFft(x,x_old) {
-  if(x.length!=64) throw "invalid_size";
-  if(x_old.length!=64) throw "invalid_size";
+  if(!(x instanceof Float32Array)) throw "invalid_type_x_paddedFft";
+  if(!(x_old instanceof Float32Array)) throw "invalid_type_x_old_paddedFft";  
+  if(x.length!=64) throw "invalid_size_x_paddedFft";
+  if(x_old.length!=64) throw "invalid_size_x_old_paddedFft";
+  const x_=f2cArray(x);
+  const x_old_=f2cArray(x_old);
   const data=[];
   for(let i=0;i<64;i++) {
-    data[i]=x_old[i];
-    data[i+64]=x[i];
+    data[i]=x_old_[i];
+    data[i+64]=x_[i];
   }
-  return fft(data);
+  return toFftData(fft(data));
 }
-// x: C[64] 前半は0,後半はxを入れるが、ハニング窓[64]をかける。
+// x: float[64] 前半は0,後半はxを入れるが、ハニング窓[64]をかける。
 function zeroPaddedHanningFft(x) {
-  if(x.length!=64) throw "invalid_size";  
+  if(!(x instanceof Float32Array)) throw "invalid_type_zeroPaddedHanningFft";  
+  if(x.length!=64) throw "invalid_size_zeroPaddedHanningFft";  
   const data=createComplexArray(128);
   for(let i=0;i<64;i++) {
     data[i].re=0;
-    data[i+64].re=x[i].re * kHanning64[i];
+    data[i+64].re=x[i] * kHanning64[i];
   }
   //console.log("data:",data.join(","),kHanning64);
-  return fft(data);
-  
+  return toFftData(fft(data));
+}
+// X: C[N]
+function calcSpectrum(X) {
+  const out=new Float32Array(X.length);
+  for(let i=0;i<X.length;i++) {
+    out[i]= X[i].re * X[i].re + X[i].im * X[i].im;
+  }
+  return out;
 }
 function fft_to_s(fft) {
   const a=[];
@@ -747,3 +772,6 @@ exports.decimateFloat32Array=decimateFloat32Array;
 exports.drawSpectrogram=drawSpectrogram;
 exports.kHanning64=kHanning64
 exports.zeroPaddedHanningFft=zeroPaddedHanningFft;
+exports.calcSpectrum=calcSpectrum;
+exports.fromFftData=fromFftData;
+exports.toFftData=toFftData;

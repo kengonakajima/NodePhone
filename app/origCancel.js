@@ -21,7 +21,9 @@ const {
   ifft,
   f2cArray,
   fft_to_s,
-  zeroPaddedHanningFft
+  zeroPaddedHanningFft,
+  calcSpectrum,
+  fromFftData
 } = require('./util.js');
 const freq=16000; 
 
@@ -129,13 +131,13 @@ function createMatchedFilter(filterNum,filterSize) {
 }
 function createAdaptiveFIRFilter() {
   const f={
-    H: createComplexArray(128)
+    H: createComplexArray(65)
   };
   f.applyFilter=function(X) {
-    if(X.length!=128) throw "invalid_size";
-    const S=createComplexArray(128);
+    if(X.length!=65) throw "invalid_size_createAdaptiveFIRFilter";
+    const S=createComplexArray(65);
     // まず partitionなしで試しているのでループは1重
-    for(let i=0;i<128;i++) {
+    for(let i=0;i<65;i++) {
       S[i].re+=X[i].re * this.H[i].re - X[i].im * this.H[i].im;
       S[i].im+=X[i].re * this.H[i].im + X[i].im * this.H[i].re;
     }
@@ -145,15 +147,31 @@ function createAdaptiveFIRFilter() {
 }
 //y:float[64] S:fftdata[128]
 function predictionError(S,y) {
-  if(S.length!=128) throw "invalid_size";
-  if(y.length!=64) throw "invalid_size";
+  if(S.length!=65) throw "invalid_size_S_predictionError";
+  if(y.length!=64) throw "invalid_size_y_predictionError";
   const e=new Float32Array(64);
-  const _s=ifft(S);
+  const _s=ifft(fromFftData(S));
   const scale=1.0/64.0; // 128.0ではなく。 AEC3がそうなってる
   for(let i=0;i<64;i++) {
     e[i]=y[i]-_s[i].re*scale;
   }
   return e;
+}
+// X2: f[65] , E: FftData
+function computeGain(X2,E) {
+  if(X2.length!=65) throw "invalid_size_x2_"+X2.length;
+  if(E.length!=65) throw "invalid_size_e_"+E.length;
+  const mu=new Float32Array(65);
+  const noise_gate=20075344;
+  let cnt=0;
+  for(let i=0;i<65;i++) {
+    if(X2[i]>noise_gate) {
+      mu[i]= 0.7/X2[i];
+      cnt++;
+    } else mu[i]=0;
+  }
+  console.log("computeGain: cnt:",cnt);
+  return mu;
 }
 function createOrigEC(freq) {
   const ec={};
@@ -170,6 +188,7 @@ function createOrigEC(freq) {
   ec.recAccum=[]; // recをshiftせずにぜんぶためておく、デバッグ用
   ec.out=[]; // 出力用
 
+  ec.spectrums=[]; // 12個のリングバッファとする。それぞれは、 Float32Array(64+1)
   ec.renderBuffer={
     // 2448=19*128+16, aec3. decimateされた信号を逆順に格納するリングバッファ. MatchedFilter用
     // write: 2448-16 aec3.
@@ -178,7 +197,7 @@ function createOrigEC(freq) {
     // decimateしない元の信号用. Adaptive FIR Filter用。 正順
     bufferHigh: createSampleBuffer(2448*4,0,0),
     copyBlockLowReversed: function(sbReversed) {
-      if(sbReversed.length!=16) throw "invalid_size";
+      if(sbReversed.length!=16) throw "invalid_size_sbR";
       for(let i=0;i<16;i++) this.bufferLowReversed.buf[this.bufferLowReversed.write+i]=sbReversed[i];
       this.bufferLowReversed.write-=16;  // 逆順リングバッファなので前に移動させていく。
       if(this.bufferLowReversed.write==-16) this.bufferLowReversed.write=2432; // 一周する
@@ -263,7 +282,7 @@ function createOrigEC(freq) {
         // ダウンサンプリングしたバッファを作成
         const recLowBlock=decimateFloat32Array(recBlock,4);
         const refLowBlockReversed=decimateFloat32Array(refBlock,4).reverse();
-        if(refLowBlockReversed.length!=subBlockSize) throw "invalid_size";
+        if(refLowBlockReversed.length!=subBlockSize) throw "invalid_size_refL";
         // renderBufferに1ブロックをコピーする
         ec.renderBuffer.copyBlockLowReversed(refLowBlockReversed);
         //ec.renderBuffer.dumpBuffer();
@@ -355,18 +374,22 @@ function createOrigEC(freq) {
           console.log("RRRR: low:",ec.renderBuffer.bufferLowReversed.read,ec.renderBuffer.bufferLowReversed.write,"high:",ec.renderBuffer.bufferHigh.read, ec.renderBuffer.bufferHigh.write,"totalLatencyBlocks:",ec.totalLatencyBlocks,"cnt:",ec.cnt,"blockCnt:",ec.blockCnt,"readPos:",readPos,"debugHighRef:",ec.debugHighRef.length,"debugHighRec:",ec.debugHighRec.length);
 
           // AFIRFで精密に推定する
-          const x=f2cArray(refBlock); // f[64]を C[64] に変換
-          const x_old=ec.x_old ? ec.x_old : createComplexArray(refBlock.length);
-          const X=paddedFft(x,x_old); // X: C[128]
+          const x=refBlock; 
+          const X=paddedFft(x,ec.x_old ? ec.x_old : x); // X: FftData
           ec.x_old=x;
           console.log("X:",X);
           const S=ec.af.applyFilter(X);
           console.log("S:",S.length,S);
           const e=predictionError(S,recBlock);
           console.log("pred e:",e);
-          const e_=f2cArray(e);
-          const E=zeroPaddedHanningFft(e_);
-          console.log("pred E:",E,e_);
+          const E=zeroPaddedHanningFft(e);
+          console.log("pred E:",E);
+          const E2=calcSpectrum(E);
+          console.log("spectrum E2:",E2.join(","));
+          const X2=calcSpectrum(X);
+          console.log("spectrum X2:",X2.join(","));
+          const G=computeGain(X2,E);
+          console.log("gain G:",G);
           
         } else {
           for(let i=0;i<blockSize;i++) ec.hoge.push(0);          
