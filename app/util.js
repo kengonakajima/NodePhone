@@ -453,7 +453,7 @@ function conjugate(complexArray) {
 // x軸:時間 y軸:要素 
 function drawSpectrogram(data_list,outputFilename,scale=1) {
 
-  const pxSz=4;
+  const pxSz=2;
 
   const outDataList=[];
   for(const data of data_list) {
