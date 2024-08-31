@@ -138,10 +138,19 @@ function createAdaptiveFIRFilter() {
     const S=createComplexArray(65);
     // まず partitionなしで試しているのでループは1重
     for(let i=0;i<65;i++) {
-      S[i].re+=X[i].re * this.H[i].re - X[i].im * this.H[i].im;
-      S[i].im+=X[i].re * this.H[i].im + X[i].im * this.H[i].re;
+      S[i].re += X[i].re * this.H[i].re - X[i].im * this.H[i].im;
+      S[i].im += X[i].re * this.H[i].im + X[i].im * this.H[i].re;
     }
     return S;
+  }
+  // aec3のAdaptPartitions関数
+  f.adapt=function(G,X) {
+    if(G.length!=65) throw "invalid_size_adapt_G";
+    if(X.length!=65) throw "invalid_size_adapt_X";
+    for(let i=0;i<65;i++) {
+      this.H[i].re += X[i].re * G[i].re + X[i].im * G[i].im;
+      this.H[i].im += X[i].re * G[i].im - X[i].im * G[i].re;
+    }    
   }
   return f;
 }
@@ -150,12 +159,12 @@ function predictionError(S,y) {
   if(S.length!=65) throw "invalid_size_S_predictionError";
   if(y.length!=64) throw "invalid_size_y_predictionError";
   const e=new Float32Array(64);
-  const _s=ifft(fromFftData(S));
+  const s=ifft(fromFftData(S));
   const scale=1.0/64.0; // 128.0ではなく。 AEC3がそうなってる
   for(let i=0;i<64;i++) {
-    e[i]=y[i]-_s[i].re*scale;
+    e[i]=y[i]-s[i].re*scale;
   }
-  return e;
+  return {e,s};
 }
 // X2: f[65] , E: FftData
 function computeGain(X2,E) {
@@ -168,10 +177,17 @@ function computeGain(X2,E) {
     if(X2[i]>noise_gate) {
       mu[i]= 0.7/X2[i];
       cnt++;
-    } else mu[i]=0;
+    } else {
+      mu[i]=0;
+    }
   }
   console.log("computeGain: cnt:",cnt);
-  return mu;
+  const G=createComplexArray(65);
+  for(let i=0;i<65;i++) {
+    G[i].re=mu[i]*E[i].re;
+    G[i].im=mu[i]*E[i].im;
+  }
+  return G;
 }
 function createOrigEC(freq) {
   const ec={};
@@ -242,13 +258,14 @@ function createOrigEC(freq) {
   ec.debugLowRec=[];
   ec.debugHighRef=[];
   ec.debugHighRec=[];
-  ec.hoge=[];
   ec.delayLog=[];
 
   ec.maxCoreOutErrorSum=0;
   ec.totalCoreOutErrorSum=0;
 
   ec.totalLatencyBlocks=0;
+
+  ec.spectrumBuffer=[]; // 過去のスペクトルを保存しておく。これでX2を平準化する。
   
   // ms: 遅延の外部からの推定値?
   // i16out : 出力
@@ -364,49 +381,62 @@ function createOrigEC(freq) {
           console.log("ec.totalLatencyBlocks:",ec.totalLatencyBlocks,"subBlockSize:",subBlockSize);
         }
 
-        if(ec.totalLatencyBlocks>0) {
-          // ここに来たということは、MatchedFilterの推定が完了している。
-          // renderBufferは逆順
-          // 次に読む信号は、 writeの位置から 遅延ブロック数 * 64 サンプル古いもの。
-          let readPos=ec.renderBuffer.bufferHigh.write - ec.totalLatencyBlocks * 64;
-          if(readPos<0) readPos+=ec.renderBuffer.bufferHigh.buf.length;
-          for(let i=0;i<blockSize;i++) ec.hoge.push(ec.renderBuffer.bufferHigh.buf[readPos+i]);
-          console.log("RRRR: low:",ec.renderBuffer.bufferLowReversed.read,ec.renderBuffer.bufferLowReversed.write,"high:",ec.renderBuffer.bufferHigh.read, ec.renderBuffer.bufferHigh.write,"totalLatencyBlocks:",ec.totalLatencyBlocks,"cnt:",ec.cnt,"blockCnt:",ec.blockCnt,"readPos:",readPos,"debugHighRef:",ec.debugHighRef.length,"debugHighRec:",ec.debugHighRec.length);
+        let finalLatencyBlocks=ec.totalLatencyBlocks;
+        // MatchedFilterの推定が完了していないときでも、仮の遅延を設定する。1ではなくもっともらしい数値にするといいかもしれない
+        if(finalLatencyBlocks==0) finalLatencyBlocks=1;
+        
+        // renderBufferは逆順
+        // 次に読む信号は、 writeの位置から 遅延ブロック数 * 64 サンプル古いもの。
+        let readPos=ec.renderBuffer.bufferHigh.write - finalLatencyBlocks * 64;
+        if(readPos<0) readPos+=ec.renderBuffer.bufferHigh.buf.length;
 
-          // AFIRFで精密に推定する
-          const x=refBlock; 
-          const X=paddedFft(x,ec.x_old ? ec.x_old : x); // X: FftData
-          ec.x_old=x;
-          console.log("X:",X);
-          const S=ec.af.applyFilter(X);
-          console.log("S:",S.length,S);
-          const e=predictionError(S,recBlock);
-          console.log("pred e:",e);
-          const E=zeroPaddedHanningFft(e);
-          console.log("pred E:",E);
-          const E2=calcSpectrum(E);
-          console.log("spectrum E2:",E2.join(","));
-          const X2=calcSpectrum(X);
-          console.log("spectrum X2:",X2.join(","));
-          const G=computeGain(X2,E);
-          console.log("gain G:",G);
-          
-        } else {
-          for(let i=0;i<blockSize;i++) ec.hoge.push(0);          
+        console.log("RRRR: low:",ec.renderBuffer.bufferLowReversed.read,ec.renderBuffer.bufferLowReversed.write,"high:",ec.renderBuffer.bufferHigh.read, ec.renderBuffer.bufferHigh.write,"totalLatencyBlocks:",ec.totalLatencyBlocks,"cnt:",ec.cnt,"blockCnt:",ec.blockCnt,"readPos:",readPos,"debugHighRef:",ec.debugHighRef.length,"debugHighRec:",ec.debugHighRec.length);
+
+        // AFIRFで精密に推定する
+        const x=refBlock; 
+        const X=paddedFft(x,ec.x_old ? ec.x_old : x); // X: FftData
+        ec.x_old=x;
+        console.log("X:",X);
+        const S=ec.af.applyFilter(X);
+        console.log("S:",S.join(","));
+        const {e,s}=predictionError(S,recBlock);
+        console.log("predictionError e:",e.join(","));
+        console.log("predictionError s:",e.join(","));
+        console.log("predictionError x:",x.join(","));        
+        const E=zeroPaddedHanningFft(e);
+        console.log("pred E:",E);
+        const E2=calcSpectrum(E);
+        console.log("spectrum E2:",E2.join(","));
+        const X2=calcSpectrum(X);
+        console.log("spectrum X2,",X2.join(","));
+        ec.spectrumBuffer.push(X2); // 過去12回分で平準化(単純に足す)
+        const X2sum=new Float32Array(65);
+        for(let i=0;i<12;i++) {
+          const ind=ec.spectrumBuffer.length-1-i;
+          const toAdd=ec.spectrumBuffer[ind];
+          if(toAdd) for(let j=0;j<65;j++) X2sum[j]+=toAdd[j];
         }
-        for(let i=0;i<blockSize;i++) ec.delayLog.push(ec.totalLatencyBlocks*100);
+        console.log("spectrum X2sum,",X2sum.join(","));        
+        const G=computeGain(X2sum,E);
+        console.log("gain G:",G.join(","));
+        ec.af.adapt(G,X);
 
+        for(let i=0;i<blockSize;i++) ec.delayLog.push(ec.totalLatencyBlocks*100);
+        
+        for(let i=0;i<64;i++) ec.out.push(e[i]);  // 1ブロック分の出力
+        console.log("EEEE:",e.join(","));
 
         ec.blockCnt++;        
-      } // version 1
+      } // for(block num)
 
-      // 出力
+      // 最終出力
       if(ec.out.length>=i16out.length) {
+        console.log("ec.out.length:",ec.out.length,"have output data. ec.out:",ec.out);
         for(let i=0;i<i16out.length;i++) {
           i16out[i]=ec.out.shift();
         }
       }      
-    }
+    } // version 1
   }
   ec.get_metrics_echo_return_loss_enhancement = function() {
     return -12345;
@@ -464,7 +494,6 @@ save_fs(ec.debugLowRef,"debugLowRef.lpcm16");
 save_fs(ec.debugLowRec,"debugLowRec.lpcm16");
 save_fs(ec.debugHighRef,"debugHighRef.lpcm16");
 save_fs(ec.debugHighRec,"debugHighRec.lpcm16");
-save_fs(ec.hoge,"hoge.lpcm16");
 save_fs(ec.delayLog,"delayLog.lpcm16");
 
 
