@@ -229,7 +229,7 @@ function totMag(a,b) {
   return tot;
 }
 
-// {re,im}
+// C{re,im}の配列をFFTする
 function fft(x) {
   const n = x.length;
 
@@ -297,7 +297,7 @@ function ifft_f(x) {
   const result = o.map(({ re }) => re / x.length);
   return result;
 }
-
+// floatの配列をFFTする。
 function fft_f(floats) {
   const n=floats.length;
   const g=to_c_array(floats);
@@ -307,6 +307,7 @@ function fft_f(floats) {
 
 // C[65]を C[128]に変換する。
 function fromFftData(fftData) {
+  if(fftData.length!=65) throw "invalid_size_fromFftData";
   const out=createComplexArray(128);
   for(let i=0;i<65;i++) out[i]=fftData[i];
   for(let i=0;i<63;i++) out[64+i]={re: fftData[63-i].re, im: fftData[63-i].im * -1 };
@@ -474,8 +475,15 @@ function drawSpectrogram(data_list,outputFilename,scale=1) {
       const data=outDataList[x][y];
       let val=Math.floor(data*256);
       if(val>255) val=255;
-      const hex=val<16 ? "0"+val.toString(16) : val.toString(16);
-      ctx.fillStyle=`#${hex}${hex}${hex}`;
+      if(val<-255) val=-255;
+      if(val<0) {
+        val*=-1;
+        const hex=val<16 ? "0"+val.toString(16) : val.toString(16);        
+        ctx.fillStyle=`#${hex}0000`;        
+      } else {
+        const hex=val<16 ? "0"+val.toString(16) : val.toString(16);
+        ctx.fillStyle=`#${hex}${hex}${hex}`;        
+      }
       ctx.fillRect(x*pxSz,y*pxSz,pxSz,pxSz);
     }
   }
@@ -732,9 +740,9 @@ exports.to_f=to_f;
 exports.to_s=to_s;
 exports.to_f_array=to_f_array;
 exports.to_s_array=to_s_array;
-exports.save_f = save_f;
-exports.save_fs = save_fs;
-exports.append_f = append_f;
+exports.save_f=save_f;
+exports.save_fs=save_fs;
+exports.append_f=append_f;
 exports.rm=rm;
 exports.calcERLE = calcERLE;
 exports.calcAveragePower = calcAveragePower;

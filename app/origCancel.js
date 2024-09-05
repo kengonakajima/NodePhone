@@ -19,11 +19,14 @@ const {
   save_f,
   paddedFft,
   ifft,
+  fft_f,
+  ifft_f,
   f2cArray,
   fft_to_s,
   zeroPaddedHanningFft,
   calcSpectrum,
-  fromFftData
+  fromFftData,
+  toFftData
 } = require('./util.js');
 const freq=16000; 
 
@@ -152,6 +155,14 @@ function createAdaptiveFIRFilter() {
       this.H[i].im += X[i].re * G[i].im - X[i].im * G[i].re;
     }    
   }
+  f.constrain=function() {
+    const h=ifft_f(fromFftData(this.H)); // 時間領域に戻す
+    const scale=1.0/64; // AEC3
+    for(let i=0;i<64;i++) h[i]*=scale;
+    for(let i=65;i<128;i++) h[i]=0; // 後ろは0
+    this.H=toFftData(fft_f(h));
+    console.log("HHHHHHHHHHHHHHH:,",h.join(","));
+  }
   return f;
 }
 //y:float[64] S:fftdata[128]
@@ -164,7 +175,9 @@ function predictionError(S,y) {
   for(let i=0;i<64;i++) {
     e[i]=y[i]-s[i].re*scale;
   }
-  return {e,s};
+  const fs=new Float32Array(64);
+  for(let i=0;i<64;i++) fs[i]=s[i].re*scale;
+  return {e,s:fs};
 }
 // X2: f[65] , E: FftData
 function computeGain(X2,E) {
@@ -175,13 +188,14 @@ function computeGain(X2,E) {
   let cnt=0;
   for(let i=0;i<65;i++) {
     if(X2[i]>noise_gate) {
-      mu[i]= 0.7/X2[i];
+      mu[i]= 0.9/X2[i]; // current_config_.rate
       cnt++;
     } else {
       mu[i]=0;
     }
   }
   console.log("computeGain: cnt:",cnt);
+  console.log("mu:,",mu.join(","));
   const G=createComplexArray(65);
   for(let i=0;i<65;i++) {
     G[i].re=mu[i]*E[i].re;
@@ -258,6 +272,7 @@ function createOrigEC(freq) {
   ec.debugLowRec=[];
   ec.debugHighRef=[];
   ec.debugHighRec=[];
+  ec.debug_s=[]; // 推定信号s
   ec.delayLog=[];
 
   ec.maxCoreOutErrorSum=0;
@@ -270,7 +285,7 @@ function createOrigEC(freq) {
   // ms: 遅延の外部からの推定値?
   // i16out : 出力
   // ns: 1ならノイズキャンセルが有効
-  ec.process = function(i16out) {
+  ec.process=function(i16out) {
     ec.cnt+=1;
     
     const version=1;
@@ -398,11 +413,12 @@ function createOrigEC(freq) {
         ec.x_old=x;
         console.log("X:",X);
         const S=ec.af.applyFilter(X);
-        console.log("S:",S.join(","));
+        console.log("S:",S);
         const {e,s}=predictionError(S,recBlock);
         console.log("predictionError e:",e.join(","));
-        console.log("predictionError s:",e.join(","));
-        console.log("predictionError x:",x.join(","));        
+        console.log("predictionError s:",s.join(","));
+        console.log("predictionError x:",x.join(","));
+        for(let i=0;i<s.length;i++) ec.debug_s.push(s[i]);
         const E=zeroPaddedHanningFft(e);
         console.log("pred E:",E);
         const E2=calcSpectrum(E);
@@ -418,13 +434,13 @@ function createOrigEC(freq) {
         }
         console.log("spectrum X2sum,",X2sum.join(","));        
         const G=computeGain(X2sum,E);
-        console.log("gain G:",G.join(","));
+        console.log("gain G:,",G.map( obj => obj.re ).join(","));
         ec.af.adapt(G,X);
+        ec.af.constrain();
 
         for(let i=0;i<blockSize;i++) ec.delayLog.push(ec.totalLatencyBlocks*100);
         
         for(let i=0;i<64;i++) ec.out.push(e[i]);  // 1ブロック分の出力
-        console.log("EEEE:",e.join(","));
 
         ec.blockCnt++;        
       } // for(block num)
@@ -470,10 +486,10 @@ for(let l=0;;l++) {
   ec.update_ref_frame(refChunk); // 前回記録した参照バッファをAECに渡す
   const processed=new Int16Array(chunkSize);
   console.log("Starting chunk process:",l);
-  ec.process(80,processed,0); // AECの実際の処理を実行する
+  ec.process(processed); // AECの実際の処理を実行する
 
   for(let i=0;i<processed.length;i++) {
-    finalOut[startIndex+i]=to_f(processed[i]);
+    finalOut[startIndex+i]=processed[i];
   }
   const enh=ec.get_metrics_echo_return_loss_enhancement(); // 統計情報を取得
 
@@ -487,7 +503,7 @@ for(let l=0;;l++) {
 }
 
 console.log("done");
-save_f(finalOut,"origStatic.lpcm16");
+save_fs(finalOut,"origStatic.lpcm16");
 
 // debug saves
 save_fs(ec.debugLowRef,"debugLowRef.lpcm16");
@@ -496,5 +512,5 @@ save_fs(ec.debugHighRef,"debugHighRef.lpcm16");
 save_fs(ec.debugHighRec,"debugHighRec.lpcm16");
 save_fs(ec.delayLog,"delayLog.lpcm16");
 
-
+save_fs(ec.debug_s,"debug_s.lpcm16");
 
