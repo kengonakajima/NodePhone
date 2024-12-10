@@ -1,3 +1,4 @@
+// CSVの行の列をファイルをスペクトログラムとして描画する
 const {
   drawSpectrogram
 } = require("./util.js");
