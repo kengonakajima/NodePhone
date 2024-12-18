@@ -31,19 +31,25 @@ const {
 } = require('./util.js');
 
 const freq=16000; 
-const sampleNum=50000;
+const sampleNum=30000;
 const downSampleRate=4;
 const downSampleNum=Math.floor(sampleNum/4);
 const filterSize=2048;
 
+/*
 const played=loadLPCMFileSync("counting48k.lpcm").slice(0,sampleNum);  // 元のデータ。これが再生用データ
 const recorded=loadLPCMFileSync("playRecCounting48k.lpcm16").slice(0,sampleNum);  // counting48k.lpcmをplayrec.jsで録音した48KHzのデータ
+*/
+
+const played=loadLPCMFileSync("glassPlay48k.lpcm").slice(0,sampleNum);  // 元のデータ。これが再生用データ
+const recorded=loadLPCMFileSync("glassRec48k.lpcm").slice(0,sampleNum);  // counting48k.lpcmをplayrec.jsで録音した48KHzのデータ
 
 
-const played16k=new Float32Array(downSampleNum);
-for(let i=0;i<downSampleNum;i++) played16k[i]=played[i*downSampleRate];
-const recorded16k=new Float32Array(downSampleNum);
-for(let i=0;i<downSampleNum;i++) recorded16k[i]=recorded[i*downSampleRate];
+// 48K>12K にdownsample
+const played12k=new Float32Array(downSampleNum);
+for(let i=0;i<downSampleNum;i++) played12k[i]=played[i*downSampleRate];
+const recorded12k=new Float32Array(downSampleNum);
+for(let i=0;i<downSampleNum;i++) recorded12k[i]=recorded[i*downSampleRate] * -1; // macOSでは変位を逆にしないとダメ(これはマイクとスピーカーの相性による。)
 
 
 // フィルタを使う必要があるのは、テンプレート信号がわかっていないからである。
@@ -83,26 +89,49 @@ function smooth(data, windowSize = 30) {
 }
 
 
-const played16k_rev=new Float32Array(played16k.length);
-for(let i=0;i<played16k.length;i++) played16k_rev[played16k.length-1-i]=played16k[i];
+const played12k_rev=new Float32Array(played12k.length);
+for(let i=0;i<played12k.length;i++) played12k_rev[played12k.length-1-i]=played12k[i];
 
-const result=convolve_full(played16k_rev,recorded16k);
-for(let i=0;i<result.length;i++) result[i]=Math.abs(result[i]); // 絶対値にする
+const result=convolve_full(played12k_rev,recorded12k); // 185ms (12500 x 12500 loop)
+for(let i=0;i<result.length;i++) result[i]=result[i];
 
-plotArrayToImage([result],8000,512,`plots/origmf_conv.png`,1/32768.0/32768.0/20);
+plotArrayToImage([result],result.length,512,`plots/origmf_conv.png`,1/32768.0/32768.0/20);
 
 
 let maxVal=0;
 let maxInd=-1;
+let minVal=0;
+let minInd=-1;
 for(let i=0;i<result.length;i++) {
+  console.log("i:",i,result[i]);
   if(result[i]>maxVal) {
     maxVal=result[i];
     maxInd=i;
   }
+  if(result[i]<minVal) {
+    minVal=result[i];
+    minInd=i;
+  }  
 }
 
 
-console.log("maxInd:",maxInd,"result.length:",result.length,"maxVal:",maxVal,"center:",result.length/2,"diff:",result.length/2 - maxInd);
+const diff=Math.floor(result.length/2 - maxInd);
+
+
+console.log("maxInd:",maxInd,"result.length:",result.length,"maxVal:",maxVal,"center:",result.length/2,"diff:",diff);
+console.log("minInd:",minInd,"minVal:",minVal,"diff:",result.length/2 - minInd);
+
+
+// 推定されたズレの分だけ動かして比較する
+const fixedRec12k=new Float32Array(recorded12k.length);
+for(let i=0;i<fixedRec12k.length;i++) {
+  fixedRec12k[i]=recorded12k[i-diff];
+}
+plotArrayToImage([played12k,fixedRec12k],played12k.length,512,"plots/origmf_compare.png",1/32768.0);
+
+
+process.exit(0);
+
 
 const smoothed=smooth(result,50);
 plotArrayToImage([smoothed],8000,512,`plots/origmf_conv_smoothed.png`,1/32768.0/32768.0/20);
@@ -119,7 +148,21 @@ for(let i=0;i<result.length;i++) {
 
 console.log("maxInd:",maxInd,"maxVal:",maxVal,"diff:",result.length/2 - maxInd);
 
-process.exit(0);
+
+
+
+// 次は64サンプルごとに処理する版
+const blockNum=Math.floor(downSampleNum/16);
+for(let bi=0;bi<blockNum;bi++) {
+  const dsRecBlock=new Float32Array(16);
+  for(let i=0;i<16;i++) dsRecBlock[i]=recorded12k[bi*16+i];
+  console.log("dsRecBlock:",dsRecBlock);
+  
+}
+
+
+
+
 
 
 
@@ -171,8 +214,8 @@ const H=new Float32Array(filterSize);
 
 for(let i=0;i<downSampleNum-filterSize;i++) {
   const x=new Float32Array(filterSize);
-  for(let j=0;j<filterSize;j++) x[j]=played16k[i+filterSize-j]; // playedから逆順にとってくる
-  const y=recorded16k[i];
+  for(let j=0;j<filterSize;j++) x[j]=played12k[i+filterSize-j]; // playedから逆順にとってくる
+  const y=recorded12k[i];
   const {errorSum,filterUpdated}=processMF(x,y,H);
   console.log("i:",i,"errorSum:",errorSum,"filterUpdated:",filterUpdated);
   if(i%200==0) {

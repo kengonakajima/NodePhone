@@ -309,8 +309,20 @@ function fft_f(floats) {
 function fromFftData(fftData) {
   if(fftData.length!=65) throw "invalid_size_fromFftData";
   const out=createComplexArray(128);
-  for(let i=0;i<65;i++) out[i]=fftData[i];
-  for(let i=0;i<63;i++) out[64+i]={re: fftData[63-i].re, im: fftData[63-i].im * -1 };
+
+ // DCとNyquistはそのまま
+  out[0] = fftData[0];
+  out[64] = fftData[64];
+
+  /*
+    半分のサイズ(65個)のスペクトルデータは、本来0Hz(DC)からNyquist周波数までの区間だけを表し、実信号のフーリエ変換結果であれば、その残り半分は共役対称なスペクトルで補う必要がある。元のコードは共役対称を再構築する箇所でインデックスの扱いや虚部の符号反転が正しくないため、再変換後の波形が崩れてしまう。 (ChatGPT)
+   */
+  
+  // 1～63までの成分に対し共役対称
+  for (let i = 1; i < 64; i++) {
+    out[i] = fftData[i];
+    out[128 - i] = { re: fftData[i].re, im: -fftData[i].im };
+  }
   return out;  
 }
 
@@ -332,6 +344,7 @@ function paddedFft(x,x_old) {
     data[i]=x_old_[i];
     data[i+64]=x_[i];
   }
+  console.log("paddedFft: data:",data);
   return toFftData(fft(data));
 }
 // x: float[64] 前半は0,後半はxを入れるが、ハニング窓[64]をかける。
@@ -708,6 +721,11 @@ function decimateFloat32Array(ary,factor) {
 }
 
 
+function sumOfSquares(fArray) {
+  let tot=0;
+  for(const f of fArray) tot+=f*f;
+  return tot;
+}
 // from aec3
 const kHanning64 = [
   0,         0.00248461, 0.00991376, 0.0222136,  0.03926189,
@@ -725,7 +743,11 @@ const kHanning64 = [
   0.0222136,  0.00991376, 0.00248461, 0
 ];
 
-
+function toIntArray(fa) {
+  const out=[];
+  for(const f of fa) out.push(Math.floor(f));
+  return out;
+}
 
 
 exports.getMaxValue=getMaxValue;
@@ -783,3 +805,5 @@ exports.zeroPaddedHanningFft=zeroPaddedHanningFft;
 exports.calcSpectrum=calcSpectrum;
 exports.fromFftData=fromFftData;
 exports.toFftData=toFftData;
+exports.sumOfSquares=sumOfSquares;
+exports.toIntArray=toIntArray;
