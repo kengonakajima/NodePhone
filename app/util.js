@@ -1,6 +1,6 @@
 const assert = require("assert");
 const fs = require('fs');
-const { createCanvas } = require('canvas');
+const { createCanvas } = require('@napi-rs/canvas');
 
 
 // AEC3 
