@@ -134,7 +134,7 @@ for(let bi=0;bi<blockNum;bi++) {
   // 2. 各周波数ビンkに対し、S(k)=H(k)・X(k)
   const S=createComplexArray(65); // Xから推定される信号。  
   for(let pi=0;pi<numPartition;pi++) { // 全部のパーティションの和を推定信号とする。
-    let Xp=Xhist[Xhist.length-pi]; // 最新のXから順番に信号を遡る。
+    let Xp=Xhist[Xhist.length-1-pi]; // 最新のXから順番に信号を遡る。
     if(!Xp) Xp=createComplexArray(65);
     for(let i=0;i<65;i++) {
       S[i].re += Xp[i].re * H[pi][i].re - Xp[i].im * H[pi][i].im;
@@ -152,6 +152,13 @@ for(let bi=0;bi<blockNum;bi++) {
   const e=new Float32Array(64);
   for(let i=0;i<64;i++) e[i]=y[i]-s[i];
   
+  // ろぐする
+  console.log("bi:",bi,"signal x:",x.join(","));
+  console.log("bi:",bi,"signal s:",s.join(","));
+  console.log("bi:",bi,"signal y:",y.join(","));
+  console.log("bi:",bi,"signal e:",e.join(","));
+  plotArrayToImage([x,s,y,e],256,256,`plots/cancelonly_${padNumber(bi,3,0)}_xsye.png`,1/32768.0);
+
   // 5. eをFFTしてEにする.
   const E=zeroPaddedHanningFft(e);
 
@@ -195,11 +202,12 @@ for(let bi=0;bi<blockNum;bi++) {
 
   // 計算したゲインを使って全部のパーティションをadaptする。
   for(let pi=0;pi<numPartition;pi++) {
+    const partitionIndex = (currentPartition + pi) % numPartition;
     let Xp=Xhist[Xhist.length-1-pi]; // 最新のXから順番に信号を遡る。
     if(!Xp) Xp=createComplexArray(65);
     for(let i=0;i<65;i++) {
-      H[currentPartition][i].re += Xp[i].re * G[i].re + Xp[i].im * G[i].im;
-      H[currentPartition][i].im += Xp[i].re * G[i].im - Xp[i].im * G[i].re;
+      H[partitionIndex][i].re += Xp[i].re * G[i].re + Xp[i].im * G[i].im;
+      H[partitionIndex][i].im += Xp[i].re * G[i].im - Xp[i].im * G[i].re;
     }
   }
   console.log("adapt: H[",currentPartition,"].re:",bi,H[currentPartition].map(c=>c.re),"H:",H);
@@ -221,7 +229,7 @@ for(let bi=0;bi<blockNum;bi++) {
   for(let i=0;i<numPartition;i++) {
     for(let j=0;j<64;j++) toDump[i*64+j]=impulseFactors[i][j];
   }
-  plotArrayToImage([toDump],768,512,`plots/impulseDump_${padNumber(bi,3,0)}.png`,10);
+  plotArrayToImage([toDump],768,512,`plots/impulseDump_${padNumber(bi,3,0)}.png`,1);
 
   
   // パーティションを次に進める
