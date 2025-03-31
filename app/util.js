@@ -344,7 +344,6 @@ function paddedFft(x,x_old) {
     data[i]=x_old_[i];
     data[i+64]=x_[i];
   }
-  console.log("paddedFft: data:",data);
   return toFftData(fft(data));
 }
 // x: float[64] 前半は0,後半はxを入れるが、ハニング窓[64]をかける。
@@ -544,7 +543,8 @@ function plotArrayToImage(data_list, width, height, outputFilename,scale=1) {
       const d=data[i]||0;
       const x = 50 + (i * (width - 70) / (l - 1));
       const y = height/2 - (d * (height/2));
-      if(y>=0 && y<=height && x>=0 && x<=width) ctx.lineTo(x, y);
+      //      if(y>=0 && y<=height && x>=0 && x<=width) ctx.lineTo(x, y);
+      if(x>=0 && x<=width) ctx.lineTo(x, y);      
     }
     ctx.stroke();
   }
