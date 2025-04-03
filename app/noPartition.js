@@ -2,7 +2,11 @@
   cancelOnly.js の partitionなし版
 
   partitionなしでどういう動きをするかしらべる。
-    
+
+  X2の内容の正しさを確認した結果、X2のpartitioning、つまり12個前のX2を残しておいて、
+  その結果を合計(spectralSum)した値を使う必要があることがわかった。
+  
+  
   */
 const {
   spectrumBar,
@@ -68,6 +72,7 @@ const estimatedDelay=959; // recordedは、playedに対してこのサンプル�
 
 let prev_x=null;
 
+const X2Logs=[]; // ここにX2をpushしていく。[0]が最も古く[length-1]が最も新しい。
 
 // ブロック数の回数くりかえす。 biはblock index.
 for(let bi=0;bi<blockNum;bi++) {
@@ -128,7 +133,17 @@ for(let bi=0;bi<blockNum;bi++) {
 
   // 7. H' = H + u ・ X* ・ E
   const E2=calcSpectrum(E);
-  const X2=calcSpectrum(X);
+  const X2_single=calcSpectrum(X);
+  X2Logs.push(X2_single);
+  const X2=new Float32Array(X.length);
+  // spectralSums相当の和を求める
+  X2.fill(0);
+  for(let i=0;i<12;i++) {
+    const toAdd=X2Logs[X2Logs.length-1-i];
+    if(toAdd) {
+      for(let k=0;k<X.length;k++) X2[k]+=toAdd[k];
+    }    
+  }
   
   // gainを計算する
   // X2: f[65] , E: FftData
