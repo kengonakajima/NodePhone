@@ -70,8 +70,10 @@ var H=createComplexArray(65); // 65要素の複素数{re,im}の配列。パー�
 
 const estimatedDelay=959; // recordedは、playedに対してこのサンプル数分遅れている(信号の値が来るのがこの要素個数分遅れる)
 
+let poorSignalExcitationCounter=0;
 let prev_x=null;
 
+const narrowBandsCounters=new Array(65).fill(0); // 狭帯域信号検出器
 const X2Logs=[]; // ここにX2をpushしていく。[0]が最も古く[length-1]が最も新しい。
 
 // ブロック数の回数くりかえす。 biはblock index.
@@ -144,6 +146,44 @@ for(let bi=0;bi<blockNum;bi++) {
       for(let k=0;k<X.length;k++) X2[k]+=toAdd[k];
     }    
   }
+  // ここでX2の狭帯域信号をカウントする
+  // 狭帯域信号の判定は、それぞれの周波数ビンが、隣の周波数ビンのパワーの3倍以上だったら狭帯域とみなし、
+  // そのビンをカウントアップする。
+  const channelCounters=new Array(X2_single.length).fill(0);
+  for(let i=1;i<X2_single.length-1;i++) {
+    if(X2_single[i]>X2_single[i+1]*3 && X2_single[i]>X2_single[i-1]*3) { // 両隣の3倍よりも大きい
+      channelCounters[i-1]++;
+    }
+  }
+  for(let i=1;i<channelCounters.length-1;i++) {
+    if(channelCounters[i-1]>0) {
+      narrowBandsCounters[i-1]++;
+    } else {
+      narrowBandsCounters[i-1]=0;
+    }
+  }
+  // 狭帯域信号の検出器の値のどれかが10以上かどうかを判定する
+  let narrowBandSignal=false;
+  for(let i=1;i<narrowBandsCounters.length-1;i++) {
+    if(narrowBandsCounters[i-1]>10) {
+      narrowBandSignal=true;
+      break;
+    }
+  }
+  poorSignalExcitationCounter++;
+  if(narrowBandSignal) {
+    poorSignalExcitationCounter=0;
+  }
+  const zeroGain = (poorSignalExcitationCounter<12);
+
+  //
+  const ccstrs=[];
+  for(let i=0;i<channelCounters.length;i++) ccstrs.push(channelCounters[i]>0 ? "*" : ".");
+  console.log("KKK bi:",bi,"channelCounters:    ",ccstrs.join(" "));
+  console.log("KKK bi:",bi,"narrowBandsCounters:",narrowBandsCounters.join(","),"NB:",narrowBandSignal,"zeroGain:",zeroGain);
+  
+
+
   
   // gainを計算する
   // X2: f[65] , E: FftData
