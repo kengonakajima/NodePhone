@@ -179,75 +179,71 @@ for(let bi=0;bi<blockNum;bi++) {
   //
   const ccstrs=[];
   for(let i=0;i<channelCounters.length;i++) ccstrs.push(channelCounters[i]>0 ? "*" : ".");
-  console.log("KKK bi:",bi,"channelCounters:    ",ccstrs.join(" "));
-  console.log("KKK bi:",bi,"narrowBandsCounters:",narrowBandsCounters.join(","),"NB:",narrowBandSignal,"zeroGain:",zeroGain);
+  console.log("bi:",bi,"channelCounters:    ",ccstrs.join(" "));
+  console.log("bi:",bi,"narrowBandsCounters:",narrowBandsCounters.join(","),"NB:",narrowBandSignal,"zeroGain:",zeroGain);
   
-
-
-  
-  // gainを計算する
-  // X2: f[65] , E: FftData
-  const mu=new Float32Array(65);
-  const noise_gate=20075344; // aec3での値
-  let cnt=0;
-  for(let i=0;i<65;i++) {
-    if(X2[i]>noise_gate) {
-      console.log("SIGNAL! bi:",bi,"i:",i,"X2[i]:",X2[i]);
-      mu[i]= 0.9/X2[i]; // current_config_.rate
-      cnt++;
-    } else {
-      mu[i]=0;
-    }
-  }
   console.log("X2: bi:",bi,"X2:",X2.join(","));
   plotArrayToImage([X2],1024,512,`plots/nopartition_x2_${bi}.png`,1/32768/32768/10);  
 
-  // G = mu * E
-  const G=createComplexArray(65);
-  for(let i=0;i<65;i++) {
-    G[i].re=mu[i]*E[i].re;
-    G[i].im=mu[i]*E[i].im;
+
+  if(zeroGain) {
+    // ゲインがない。つまり、Hを更新しない
+    console.log("bi:",bi,"zeroGain:",zeroGain,"H.re:",H.map(c=>c.re));
+  } else {
+    // gainを計算する
+    // X2: f[65] , E: FftData
+    const mu=new Float32Array(65);
+    const noise_gate=20075344; // aec3での値
+    let cnt=0;
+    for(let i=0;i<65;i++) {
+      if(X2[i]>noise_gate) {
+        console.log("SIGNAL! bi:",bi,"i:",i,"X2[i]:",X2[i]);
+        mu[i]= 0.9/X2[i]; // current_config_.rate
+        cnt++;
+      } else {
+        mu[i]=0;
+      }
+    }
+
+    // G = mu * E
+    const G=createComplexArray(65);
+    for(let i=0;i<65;i++) {
+      G[i].re=mu[i]*E[i].re;
+      G[i].im=mu[i]*E[i].im;
+    }
+
+    // 計算したゲインを使って全部のパーティションをadaptする。
+    for(let i=0;i<65;i++) {
+      H[i].re += X[i].re * G[i].re + X[i].im * G[i].im;
+      H[i].im += X[i].re * G[i].im - X[i].im * G[i].re;
+    }
+    console.log("adapt: bi:",bi,"H.re:",H.map(c=>c.re));
+  
+  
+    // 8. adaptした後、1個のパーティションをconstrainする。 
+    const h=ifft_f(fromFftData(H)); // 時間領域に戻す
+    console.log("h (after ifft):",h); // hは f[128]  ifft_fの中で 64で割る操作が入ってるので、もういちどやる必要はない。
+    for(let i=65;i<128;i++) h[i]=0; // 後ろは0にする
+    console.log("H (after fill):",h.join(","));    
+    Hnext=toFftData(fft_f(h)); // HnextはHとだいぶ違った値になる。絶対値がちょっと小さくなる方向。
+    let hnextmax=-999999999999,hmax=-999999999999;
+    for(let i=0;i<Hnext.length;i++) {
+      if(Hnext[i].re>hnextmax) hnextmax=Hnext[i].re;
+      if(H[i].re>hmax) hmax=H[i].re;
+    }
+    console.log("bi:",bi,"hnextmax:",hnextmax,"hmax:",hmax,"Hnext:",Hnext,"Horig:",H);
+    H=Hnext;
+    console.log("constrain after fft: H.re:",H.map(c=>c.re));
   }
 
-
-  // 計算したゲインを使って全部のパーティションをadaptする。
-  for(let i=0;i<65;i++) {
-    H[i].re += X[i].re * G[i].re + X[i].im * G[i].im;
-    H[i].im += X[i].re * G[i].im - X[i].im * G[i].re;
-  }
-  console.log("adapt: bi:",bi,"H.re:",H.map(c=>c.re));
-
-
-  // 以下テスト。 fft, ifftが正しく値を戻してるか見る
-  /*これは綺麗に戻してた。スケーリングの問題ではない
   {
-    const hh=ifft_f(fromFftData(H));
-    console.log("bi:",bi,"hh:",hh);
-    const HH=toFftData(fft_f(hh));
-    console.log("bi:",bi,"HH:",HH,"H:",H);
+    // デバッグ用
+    const h=ifft_f(fromFftData(H)); // 時間領域に戻す
+    plotArrayToImage([h],768,512,`plots/h_${padNumber(bi,3,0)}.png`,1);
   }
-  */
-  
-  // 8. adaptした後、1個のパーティションをconstrainする。 
-  const h=ifft_f(fromFftData(H)); // 時間領域に戻す
-  console.log("h (after ifft):",h); // hは f[128]  ifft_fの中で 64で割る操作が入ってるので、もういちどやる必要はない。
-  for(let i=65;i<128;i++) h[i]=0; // 後ろは0にする
-  console.log("H (after fill):",h.join(","));    
-  Hnext=toFftData(fft_f(h)); // HnextはHとだいぶ違った値になる。絶対値がちょっと小さくなる方向。
-  let hnextmax=-999999999999,hmax=-999999999999;
-  for(let i=0;i<Hnext.length;i++) {
-    if(Hnext[i].re>hnextmax) hnextmax=Hnext[i].re;
-    if(H[i].re>hmax) hmax=H[i].re;
-  }
-  console.log("bi:",bi,"hnextmax:",hnextmax,"hmax:",hmax,"Hnext:",Hnext,"Horig:",H);
-  H=Hnext;
-
-
 
   
-  console.log("constrain after fft: H.re:",H.map(c=>c.re));
-
-  plotArrayToImage([h],768,512,`plots/h_${padNumber(bi,3,0)}.png`,1);
+ 
 }
 
 
