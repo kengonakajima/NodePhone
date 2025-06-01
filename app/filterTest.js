@@ -116,3 +116,106 @@ const yBlocks=[
   - メモリ効率: 64サンプル単位の処理
   
   */
+
+// 1. フィルタ係数の初期化（64個、ゼロ初期化）
+let H = new Array(64).fill(0);
+
+// 学習率（正規化LMSで安定化）
+const mu = 0.001;
+
+// 2. 畳み込み関数（x信号にフィルタHを適用して推定信号sを生成）
+function convolve(x, H) {
+  const s = new Array(x.length).fill(0);
+  for (let n = 0; n < x.length; n++) {
+    for (let k = 0; k < H.length && k <= n; k++) {
+      s[n] += H[k] * x[n - k];
+    }
+  }
+  return s;
+}
+
+// 3. 誤差信号計算関数（y - s）
+function calculateError(y, s) {
+  const e = new Array(y.length).fill(0);
+  for (let i = 0; i < y.length; i++) {
+    e[i] = y[i] - s[i];
+  }
+  return e;
+}
+
+// 4. LMSアルゴリズムによるフィルタ係数更新（正規化版）
+function updateFilter(H, x, e, mu) {
+  // 入力信号の電力を計算
+  const xPower = x.reduce((sum, val) => sum + val * val, 0) / x.length;
+  const normalizedMu = xPower > 0 ? mu / xPower : mu;
+  
+  for (let k = 0; k < H.length; k++) {
+    for (let n = k; n < x.length; n++) {
+      H[k] += normalizedMu * e[n] * x[n - k];
+    }
+  }
+}
+
+// 5. メインループ：各ブロックでAdaptive FIRフィルタを学習
+console.log("Adaptive FIR Filter開始");
+console.log(`ブロック数: ${xBlocks.length}, フィルタ係数: ${H.length}, 学習率: ${mu}`);
+
+for (let blockIndex = 0; blockIndex < xBlocks.length; blockIndex++) {
+  const x = xBlocks[blockIndex];
+  const y = yBlocks[blockIndex];
+  
+  // 推定信号を計算
+  const s = convolve(x, H);
+  
+  // 誤差信号を計算
+  const e = calculateError(y, s);
+  
+  // フィルタ係数を更新
+  updateFilter(H, x, e, mu);
+  
+  // 進捗表示（1ブロックごと）
+  const errorPower = e.reduce((sum, val) => sum + val * val, 0) / e.length;
+  const signalPower = y.reduce((sum, val) => sum + val * val, 0) / y.length;
+  const refPower = x.reduce((sum, val) => sum + val * val, 0) / x.length;
+  
+  // ERL (Echo Return Loss): 10*log10(参照信号電力/誤差電力)
+  const ERL = refPower > 0 && errorPower > 0 ? 10 * Math.log10(refPower / errorPower) : 0;
+  
+  // ENH (Enhancement): 10*log10(受信信号電力/誤差電力) 
+  const ENH = signalPower > 0 && errorPower > 0 ? 10 * Math.log10(signalPower / errorPower) : 0;
+  
+  console.log(`ブロック ${blockIndex + 80}: 誤差電力=${errorPower.toFixed(1)} ERL=${ERL.toFixed(1)}dB ENH=${ENH.toFixed(1)}dB`);
+}
+
+// 6. 結果出力・検証
+console.log("\n=== フィルタ学習完了 ===");
+
+// 最終的なフィルタ係数の統計
+const maxCoeff = Math.max(...H.map(Math.abs));
+const avgCoeff = H.reduce((sum, val) => sum + Math.abs(val), 0) / H.length;
+console.log(`フィルタ係数統計:`);
+console.log(`  最大絶対値: ${maxCoeff.toFixed(6)}`);
+console.log(`  平均絶対値: ${avgCoeff.toFixed(6)}`);
+
+// 最終ブロックでの性能評価
+const lastX = xBlocks[xBlocks.length - 1];
+const lastY = yBlocks[yBlocks.length - 1];
+const finalS = convolve(lastX, H);
+const finalE = calculateError(lastY, finalS);
+const finalErrorPower = finalE.reduce((sum, val) => sum + val * val, 0) / finalE.length;
+const signalPower = lastY.reduce((sum, val) => sum + val * val, 0) / lastY.length;
+const errorReduction = ((signalPower - finalErrorPower) / signalPower * 100);
+
+console.log(`\n最終ブロック（103）での性能:`);
+console.log(`  信号電力: ${signalPower.toFixed(3)}`);
+console.log(`  誤差電力: ${finalErrorPower.toFixed(3)}`);
+console.log(`  誤差削減: ${errorReduction.toFixed(1)}%`);
+
+// 重要なフィルタ係数を表示（絶対値が大きい上位10個）
+const indexedH = H.map((val, idx) => ({value: val, index: idx}));
+indexedH.sort((a, b) => Math.abs(b.value) - Math.abs(a.value));
+console.log(`\n主要フィルタ係数（上位10個）:`);
+for (let i = 0; i < Math.min(10, indexedH.length); i++) {
+  const {value, index} = indexedH[i];
+  console.log(`  H[${index}] = ${value.toFixed(6)}`);
+}
