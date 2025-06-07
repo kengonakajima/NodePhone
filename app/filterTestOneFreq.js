@@ -4,8 +4,9 @@
   */
 
 const { plotArrayToImage, padNumber, loadLPCMFileSync, save_fs, 
-        paddedFft, ifft, fromFftData, toFftData, fft_f, ifft_f,
-        calcSpectrum, calcPowerSpectrum, createComplexArray } = require('./util.js');
+        paddedFft, ifft, fromFftData, toFftData, fft_f, ifft_f, ifft_65_to_128,
+        calcSpectrum, calcPowerSpectrum, createComplexArray, zeroPaddedFft, zeroPaddedHanningFft,
+      sumOfSquares } = require('./util.js');
 
 // データロードとダウンサンプリング
 const sampleNum = 48000;
@@ -45,6 +46,11 @@ console.log(`データロード完了: ${blockNum}ブロック生成`);
 
 const xBlock = xBlocks[95];
 const yBlock = yBlocks[95];
+const prevXBlock = xBlocks[94];
+const prevYBlock = yBlocks[94];
+
+plotArrayToImage([prevXBlock],512,256,`plots/ftof_prevXBlock.png`,1/32768.0);
+plotArrayToImage([xBlock],512,256,`plots/ftof_xBlock.png`,1/32768.0);
 
 /*
   周波数領域Adaptive FIR Filter実装
@@ -57,233 +63,146 @@ const yBlock = yBlocks[95];
 // 1. 周波数領域フィルタ係数の初期化（65個の複素数、ゼロ初期化）
 let H = createComplexArray(65); // {re, im}の配列
 
-// 学習率
-const mu = 0.002;
 
 // 前のブロック保存用
-let prev_x = null;
+let prev_x = prevXBlock;
+let prev_y = prevYBlock;
 
-// 2. 周波数領域での推定信号計算関数
-function frequencyDomainConvolve(X, H) {
-  // S(k) = H(k) * X(k) (周波数領域での畳み込みは掛け算)
-  const S = createComplexArray(65);
-  for(let i = 0; i < 65; i++) {
-    S[i].re = X[i].re * H[i].re - X[i].im * H[i].im;
-    S[i].im = X[i].re * H[i].im + X[i].im * H[i].re;
-  }
-  return S;
-}
+const X2Logs=[];
+const narrowBandsCounters=new Array(65).fill(0); // 狭帯域信号検出器
 
-// 3. 時間領域への変換関数
-function ifftToTimeDomain(S) {
-  const _s = ifft(fromFftData(S));
-  const s = new Float32Array(64);
-  const scale = 1.0 / 64.0;
-  for(let i = 0; i < 64; i++) s[i] = _s[i].re * scale;
-  return s;
-}
 
-// 4. 誤差信号計算関数（時間領域）
-function calculateError(y, s) {
-  const e = new Float32Array(y.length);
-  for (let i = 0; i < y.length; i++) {
-    e[i] = y[i] - s[i];
-  }
-  return e;
-}
 
-// 5. 周波数領域LMSアルゴリズムによるフィルタ係数更新（noPartition.js準拠）
-function updateFilterFrequencyDomain(H, X, E, mu) {
-  // X2 (パワースペクトラム) を計算
-  const X2 = calcSpectrum(X);
-  
-  // noise_gate
-  const noise_gate = 20075344; // noPartition.jsと同じ値
-  
-  // ゲイン計算: mu[k] = 0.9 / X2[k] (noPartition.js準拠)
-  const mu_freq = new Float32Array(65);
-  let cnt = 0;
-  
-  for(let i = 0; i < 65; i++) {
-    if(X2[i] > noise_gate) {
-      mu_freq[i] = 0.9 / X2[i]; // noPartition.jsと同じ
-      cnt++;
-    } else {
-      mu_freq[i] = 0;
-    }
-  }
-  
-  // console.log(`ゲート通過ビン: ${cnt}/65`);
-  
-  // G = mu * E (noPartition.js準拠)
-  const G = createComplexArray(65);
-  for(let i = 0; i < 65; i++) {
-    G[i].re = mu_freq[i] * E[i].re;
-    G[i].im = mu_freq[i] * E[i].im;
-  }
-  
-  // フィルタ更新: H(k) = H(k) + X*(k) * G(k) (noPartition.js準拠)
-  for(let i = 0; i < 65; i++) {
-    H[i].re += X[i].re * G[i].re + X[i].im * G[i].im;
-    H[i].im += X[i].re * G[i].im - X[i].im * G[i].re;
-  }
-}
-
-// 6. Constrain処理（因果性保証）
-function constrainFilter(H) {
-  // 周波数領域から時間領域に変換
-  const h = ifft_f(fromFftData(H));
-  
-  // 後半部分（非因果部分）をゼロクリア
-  for(let i = 65; i < 128; i++) {
-    h[i] = 0;
-  }
-  
-  // 時間領域から周波数領域に戻す
-  return toFftData(fft_f(h));
-}
-
-// 7. メインループ：周波数領域Adaptive FIRフィルタを学習
-console.log("周波数領域 Adaptive FIR Filter開始");
-
-for (let i = 0; i < 100; i++) {
+// メインループ：周波数領域Adaptive FIRフィルタを学習
+// 単一のブロックについて繰り返す。
+for (let li = 0; li < 100; li++) {
   // 同じブロックについて計算する
   const x = xBlock;
   const y = yBlock;
+  const prev_x = prevXBlock;
+  //prev_x=new Float32Array(64).fill(0);
   
   // 1. 時間領域信号をFFTして周波数領域に変換
-  const X = paddedFft(x, prev_x ? prev_x : x);
-  prev_x = x;
-  
-  // 2. 周波数領域で推定信号を計算
-  const S = frequencyDomainConvolve(X, H);
-  
-  // 3. 推定信号を時間領域に戻す
-  const s = ifftToTimeDomain(S);
-  
-  // 4. 時間領域で誤差信号を計算
-  const e = calculateError(y, s);
-  
-  // 5. 誤差信号を周波数領域に変換
-  const E = paddedFft(e, new Float32Array(64));
-  
-  // 6. 周波数領域でフィルタ係数を更新
-  updateFilterFrequencyDomain(H, X, E, mu);
-  
-  // 7. Constrain処理（因果性保証）
-  H = constrainFilter(H);
-  
-  // 進捗表示
-  const errorPower = e.reduce((sum, val) => sum + val * val, 0) / e.length;
-  const signalPower = y.reduce((sum, val) => sum + val * val, 0) / y.length;
-  const refPower = x.reduce((sum, val) => sum + val * val, 0) / x.length;
-  
-  // ERL (Echo Return Loss): 10*log10(参照信号電力/誤差電力)
-  const ERL = refPower > 0 && errorPower > 0 ? 10 * Math.log10(refPower / errorPower) : 0;
-  
-  // ENH (Enhancement): 10*log10(受信信号電力/誤差電力) 
-  const ENH = signalPower > 0 && errorPower > 0 ? 10 * Math.log10(signalPower / errorPower) : 0;
-  
-  console.log(`LOOP ${i}: 誤差電力=${errorPower.toFixed(1)} ERL=${ERL.toFixed(1)}dB ENH=${ENH.toFixed(1)}dB`);
-  
-  // 4本の線を含むグラフを画像として出力
-  const filename = `plots/one_block_freq_${padNumber(i, 3, 0)}_xsye.png`;
-  plotArrayToImage([x, s, y, e], 800, 400, filename, 1.0/32768.0);
+  const X = paddedFft(x, prev_x); // 常に1個前のと比較している。  
 
-  // 削減率が十分小さくなったら、その時点での係数を出力する
-  if(ENH > 24) {
-    console.log("Good ENH occurred.");
-    
-    // 周波数領域係数を時間領域に変換して表示
-    const h_time = ifft_f(fromFftData(H));
-    const h_display = new Float32Array(64);
-    for(let j = 0; j < 64; j++) {
-      h_display[j] = h_time && h_time[j] !== undefined ? h_time[j] : 0;
-    }
-    
-    console.log("H (time domain):", h_display.join(","));
-    plotArrayToImage([h_display], 800, 400, `plots/one_goodENH_H_freq.png`, 1);
-    break;
+  const Xspec = calcPowerSpectrum(X);
+  console.log("Xspec:",Xspec.join(","));
+  plotArrayToImage([Xspec],1024,512,`plots/ftof_Xspec.png`,1/10000/10000/1000); // 1000億
+
+  //H[0].re=H[0].im=0;
+  
+  // 2. 各周波数ビンkに対し、S(k)=H(k)・X(k)
+  const S = createComplexArray(65); // Xから推定される信号。  
+  for(let i=0;i<65;i++) {
+    S[i].re += X[i].re * H[i].re - X[i].im * H[i].im;
+    S[i].im += X[i].re * H[i].im + X[i].im * H[i].re;
+  }    
+
+  const Sspec=calcPowerSpectrum(S);
+  console.log("Sspec:",Sspec.join(","));  
+  plotArrayToImage([Sspec],1024,512,`plots/ftof_Sspec_${padNumber(li,3,0)}.png`,1/10000/10000/1000); // 1000億
+
+  // 3. SをIFFTして sにする.  S:fftdata[128]
+  const _s=ifft_65_to_128(S); // _sは128サンプルが来ている
+  const s=new Float32Array(64);
+  for(let i=0;i<64;i++) s[i]=_s[i+64]; // 後半の64サンプルだけを取る。
+  console.log("s:",s.join(","));
+  plotArrayToImage([s],1024,512,`plots/ftof_s_${padNumber(li,3,0)}.png`,1/32768.0);
+
+  // 4. e = y - s  Sとyを比較して誤差信号を求める。
+  const e=new Float32Array(64);
+  for(let i=0;i<64;i++) e[i]=y[i]-s[i];
+
+  console.log("s:",s.join(","));
+
+  
+
+  // 5. eをFFTしてEにする.
+  //const E=zeroPaddedFft(e);
+  const E=zeroPaddedHanningFft(e);
+
+  // 6. ERL = 10 log10( Y2 / S2) を計算
+  const y2=sumOfSquares(y);
+  const e2=sumOfSquares(e);  
+  const s2=sumOfSquares(s);
+  const erl=10*Math.log10(y2/e2);
+  const ratio=12000 / 16000;
+  const kConvergenceThreshold=160000 * ratio; // この定数は、16KHzと12KHzでは2乗和なので調整する必要あり。
+  const kConvergenceThresholdLowLevel=25600 * ratio;
+  const filter_converged_strict = ( e2 < 0.05 * y2 ) && ( y2 > kConvergenceThreshold );
+  const filter_converged_relaxed = ( e2 < 0.2 * y2 ) && ( y2 > kConvergenceThresholdLowLevel);
+  console.log("li:",li,"CONVERGE: strict:",filter_converged_strict,"relaxed:",filter_converged_relaxed,"e2:",parseInt(e2),"y2:",y2,"s2:",parseInt(s2),"erl:",erl);
+
+  // 7. H' = H + u ・ X* ・ E
+  const E2=calcSpectrum(E);
+  const X2_single=calcSpectrum(X);
+  X2Logs.push(X2_single);
+  const X2=new Float32Array(X.length);  
+  // spectralSums相当の和を求める
+  X2.fill(0);  
+  for(let i=0;i<12;i++) {
+    const toAdd=X2Logs[X2Logs.length-1-i];
+    if(toAdd) {
+      for(let k=0;k<X.length;k++) X2[k]+=toAdd[k];
+    }    
   }
+
+  // ここで noPartitionだと、狭帯域信号を検出して、ZEROGAIN処理をするが、一旦省略して、ゲインを計算する
+
+  // gainを計算する
+  // X2: f[65] , E: FftData
+  const mu=new Float32Array(65);
+  const noise_gate=20075344; // aec3での値
+  let cnt=0;
+  for(let i=0;i<65;i++) {
+    if(X2[i]>noise_gate) {
+      console.log("SIGNAL! li:",li,"i:",i,"X2[i]:",X2[i]);
+      mu[i]= 0.9/X2[i]; // current_config_.rate
+      cnt++;
+    } else {
+      mu[i]=0;
+    }
+  }
+
+  console.log("mu:,",mu.join(","));
+  const Espec=calcPowerSpectrum(E);
+  console.log("Espec:,",Espec.join(","));
+  
+  // G = mu * E
+  const G=createComplexArray(65);
+  for(let i=0;i<65;i++) {
+    G[i].re=mu[i]*E[i].re;
+    G[i].im=mu[i]*E[i].im;
+  }
+  const Gspec=calcPowerSpectrum(G);
+  console.log("Gspec:,",Gspec.join(","));
+
+  // 計算したゲインを使って全部のパーティションをadaptする。
+  for(let i=0;i<65;i++) {
+    H[i].re += X[i].re * G[i].re + X[i].im * G[i].im;
+    H[i].im += X[i].re * G[i].im - X[i].im * G[i].re;
+  }
+  console.log("adapt: li:",li,"H.re:",H.map(c=>c.re));
+
+
+  // 8. adaptした後、1個のパーティションをconstrainする。 
+  const h=ifft_f(fromFftData(H)); // 時間領域に戻す
+  console.log("h (after ifft):",h); // hは f[128]  ifft_fの中で 64で割る操作が入ってるので、もういちどやる必要はない。
+  for(let i=64;i<128;i++) h[i]=0; // 後ろは0にする
+  console.log("H (after fill):",h.join(","));    
+  let Hnext=toFftData(fft_f(h)); // HnextはHとだいぶ違った値になる。絶対値がちょっと小さくなる方向。
+  let hnextmax=-999999999999,hmax=-999999999999;
+  for(let i=0;i<Hnext.length;i++) {
+    if(Hnext[i].re>hnextmax) hnextmax=Hnext[i].re;
+    if(H[i].re>hmax) hmax=H[i].re;
+  }
+  console.log("li:",li,"hnextmax:",hnextmax,"hmax:",hmax,"Hnext:",Hnext,"Horig:",H);
+  H=Hnext;
+  console.log("constrain after fft: H.re:",H.map(c=>c.re));
+
+
+  plotArrayToImage([x,s,y,e],1024,512,`plots/ftof_xsye_${padNumber(li,3,0)}.png`,1/32768.0);
+  
+  
 }
 
-// 8. 結果出力・検証
-console.log("\n=== 周波数領域フィルタ学習完了 ===");
-
-// 最終的なフィルタ係数の統計（時間領域に変換）
-const finalH_time = ifft_f(fromFftData(H));
-
-const h_coeffs = new Float32Array(64);
-if (finalH_time && finalH_time.length >= 64) {
-  for(let i = 0; i < 64; i++) {
-    const val = finalH_time[i];
-    h_coeffs[i] = (typeof val === 'number' && !isNaN(val) && isFinite(val)) ? val : 0;
-  }
-} else {
-  console.log("警告: ifft_f結果が不正です");
-  h_coeffs.fill(0);
-}
-
-const maxCoeff = Math.max(...h_coeffs.map(Math.abs));
-const avgCoeff = h_coeffs.reduce((sum, val) => sum + Math.abs(val), 0) / h_coeffs.length;
-console.log(`フィルタ係数統計 (時間領域換算):`);
-console.log(`  最大絶対値: ${maxCoeff.toFixed(6)}`);
-console.log(`  平均絶対値: ${avgCoeff.toFixed(6)}`);
-
-// 最終ブロックでの性能評価
-const lastX = xBlock;
-const lastY = yBlock;
-
-// 最終推定信号計算
-const finalX = paddedFft(lastX, lastX);
-const finalS_freq = frequencyDomainConvolve(finalX, H);
-const finalS = ifftToTimeDomain(finalS_freq);
-const finalE = calculateError(lastY, finalS);
-
-const finalErrorPower = finalE.reduce((sum, val) => sum + val * val, 0) / finalE.length;
-const signalPower = lastY.reduce((sum, val) => sum + val * val, 0) / lastY.length;
-const errorReduction = ((signalPower - finalErrorPower) / signalPower * 100);
-
-console.log(`\n最終ブロック（95）での性能:`);
-console.log(`  信号電力: ${signalPower.toFixed(3)}`);
-console.log(`  誤差電力: ${finalErrorPower.toFixed(3)}`);
-console.log(`  誤差削減: ${errorReduction.toFixed(1)}%`);
-
-// 重要なフィルタ係数を表示（絶対値が大きい上位10個）
-try {
-  const indexedH = [];
-  for (let idx = 0; idx < h_coeffs.length; idx++) {
-    const val = h_coeffs[idx];
-    if (typeof val === 'number' && !isNaN(val) && isFinite(val)) {
-      indexedH.push({ value: val, index: idx });
-    }
-  }
-  
-  indexedH.sort((a, b) => Math.abs(b.value) - Math.abs(a.value));
-  console.log(`\n主要フィルタ係数（上位10個）:`);
-  for (let i = 0; i < Math.min(10, indexedH.length); i++) {
-    const {value, index} = indexedH[i];
-    console.log(`  H[${index}] = ${value.toFixed(6)}`);
-  }
-
-  // 周波数領域係数の振幅スペクトラムも表示
-  const H_power = calcPowerSpectrum(H);
-  if (H_power && H_power.length > 0) {
-    const indexedH_freq = [];
-    for (let idx = 0; idx < H_power.length; idx++) {
-      const val = H_power[idx];
-      if (typeof val === 'number' && !isNaN(val) && isFinite(val)) {
-        indexedH_freq.push({ value: val, index: idx });
-      }
-    }
-    
-    indexedH_freq.sort((a, b) => b.value - a.value);
-    console.log(`\n周波数領域フィルタ振幅スペクトラム（上位10個）:`);
-    for (let i = 0; i < Math.min(10, indexedH_freq.length); i++) {
-      const {value, index} = indexedH_freq[i];
-      console.log(`  |H[${index}]|² = ${value.toFixed(6)}`);
-    }
-  }
-} catch (error) {
-  console.log("結果表示中にエラーが発生しました:", error.message);
-}
