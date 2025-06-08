@@ -64,23 +64,20 @@ plotArrayToImage([xBlock],512,256,`plots/ftof_xBlock.png`,1/32768.0);
 let H = createComplexArray(65); // {re, im}の配列
 
 
-// 前のブロック保存用
-let prev_x = prevXBlock;
-let prev_y = prevYBlock;
+// 計算に必要な元データ
+// 毎ループ同じブロックについて計算する
+const x = xBlock;
+const y = yBlock;
+const prev_x = prevXBlock;
+const prev_y = prevYBlock;
+const prev_prev_x = prevprevXBlock;
 
 const X2Logs=[];
-const narrowBandsCounters=new Array(65).fill(0); // 狭帯域信号検出器
-
 
 
 // メインループ：周波数領域Adaptive FIRフィルタを学習
 // 単一のブロックについて繰り返す。
 for (let li = 0; li < 100; li++) {
-  // 同じブロックについて計算する
-  const x = xBlock;
-  const y = yBlock;
-  const prev_x = prevXBlock;
-  //prev_x=new Float32Array(64).fill(0);
   
   // 1. 時間領域信号をFFTして周波数領域に変換
   const X = paddedFft(x, prev_x); // 常に1個前のと比較している。  
