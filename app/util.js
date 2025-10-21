@@ -160,34 +160,6 @@ function to_s_array(f_ary) {
   return out;  
 }
 
-// aec3形式の、-32768~32768までのfloat値の配列をlpcmで保存する
-function clampInt16(value) {
-  if(value>32767) return 32767;
-  if(value<-32768) return -32768;
-  return value;
-}
-
-// aec3形式の、-32768~32767までの値の配列をWAVで保存する
-function save_fs(buf,path,sampleRate=16000) {
-  let data;
-  if(buf instanceof Int16Array) {
-    data=buf;
-  } else {
-    const n=buf.length;
-    data=new Int16Array(n);
-    for(let i=0;i<n;i++) data[i]=clampInt16(Math.floor(buf[i]));
-  }
-  saveWAVFileSync(path,data,sampleRate);
-}
-
-// -1~1のfloat値の配列をWAVで保存する
-function save_f(buf,path,sampleRate=16000) {
-  const n=buf.length;
-  const data=new Int16Array(n);
-  for(let i=0;i<n;i++) data[i]=clampInt16(to_s(buf[i]));
-  saveWAVFileSync(path,data,sampleRate);
-}
-
 function rm(path) {
   try {
    fs.unlinkSync(path); 
@@ -883,8 +855,6 @@ exports.to_f=to_f;
 exports.to_s=to_s;
 exports.to_f_array=to_f_array;
 exports.to_s_array=to_s_array;
-exports.save_f=save_f;
-exports.save_fs=save_fs;
 exports.rm=rm;
 exports.calcERLE = calcERLE;
 exports.calcAveragePower = calcAveragePower;

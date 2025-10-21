@@ -2,9 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 const {
-  loadLPCMFileSync,
   getMaxValue,
-  save_f,
   to_f,
   plotArrayToImage
  
@@ -35,5 +33,3 @@ fs.readFile(filePath, 'utf8', (err, data) => {
     cnt+=1;
   }
 });
-
-

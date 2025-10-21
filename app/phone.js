@@ -49,8 +49,8 @@ const encoder=new OpusEncoder(g_freq,1); // 1 ch: monoral
 
 
 // 録音
-const g_recSamples=[]; // lpcm16。録音バッファ
-const g_refSamples=[]; // lpcm16 再生バッファ
+const g_recSamples=[]; // Int16の録音バッファ
+const g_refSamples=[]; // Int16の再生バッファ
 
 let g_recMaxSample=0, g_playMaxSample=0;
 
@@ -201,6 +201,5 @@ g_cl.sendEncodedData = function(data,vol) {
     console.log("ws not ready");
   }
 }
-
 
 

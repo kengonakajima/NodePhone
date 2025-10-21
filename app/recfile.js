@@ -1,10 +1,13 @@
-const {PortAudio, getVolumeBar} = require('./util.js');
-const fs=require("fs");
+const {PortAudio, getVolumeBar, saveWAVFileSync} = require('./util.js');
 
 // PortAudioの内部バッファを初期化する
 PortAudio.initSampleBuffers(48000,48000,512); 
 // マイクを開始する
 PortAudio.startMic(); 
+
+const outputPath="recorded.wav";
+const sampleRate=48000;
+const recordedChunks=[]; // Int16Arrayの配列
 
 // 25ミリ秒に1回繰り返す
 setInterval(()=>{
@@ -25,8 +28,19 @@ setInterval(()=>{
   console.log("mic volume:", bar, "len:",samples.length);
 
   // 録音した音をファイルに保存する
-  const b=Buffer.from(samples.buffer);
-  fs.appendFileSync("recorded.lpcm16",b);
+  const chunk=new Int16Array(samples.length);
+  chunk.set(samples);
+  recordedChunks.push(chunk);
 },25);
 
-
+process.on('SIGINT',()=>{
+  const totalLength=recordedChunks.reduce((sum,chunk)=>sum+chunk.length,0);
+  const merged=new Int16Array(totalLength);
+  let offset=0;
+  for(const chunk of recordedChunks) {
+    merged.set(chunk,offset);
+    offset+=chunk.length;
+  }
+  saveWAVFileSync(outputPath,merged,sampleRate);
+  process.exit(0);
+});
