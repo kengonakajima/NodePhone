@@ -11,8 +11,16 @@ const {
 } = require('./util.js');
 
 
+if(!process.argv[4]) {
+  console.log("args: filePath prefix scale");
+  process.exit(1);
+}
+  
 const filePath = path.join(__dirname, process.argv[2]);
-const scale = process.argv[3] || 1;
+const prefix = process.argv[3];
+const scale = parseFloat(process.argv[4]);
+
+
 
 fs.readFile(filePath, 'utf8', (err, data) => {
   if (err) {
@@ -20,15 +28,12 @@ fs.readFile(filePath, 'utf8', (err, data) => {
     return;
   }
   const lines=data.split('\n');
-  let loatArray = null;
-  if(lines.length<10) { // 閾値は適当。行数が少なかったら
-    const line=lines[0];
-    floatArray = lines[0].split(',').map(Number);    
-  } else {
-    floatArray = lines.filter(line => line.trim() !== '').map(Number);    
+  let cnt=0;
+  for(const line of lines) {
+    const array = line.split(',').map(Number);
+    plotArrayToImage([array],1024,512,`plots/${prefix}_${cnt}.png`,scale);
+    cnt+=1;
   }
-  console.log("loaded data:",floatArray);
-  plotArrayToImage([floatArray],1024,512,"plots/plot.js.out.png",scale);
 });
 
 
