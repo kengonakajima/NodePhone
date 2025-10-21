@@ -24,13 +24,13 @@ const {
   plotArrayToImage,
   to_f_array
 } = require('./util.js');
-const freq=24000;
+const freq=48000;
 const paUnit=256;
 PortAudio.initSampleBuffers(freq,freq,paUnit);
 PortAudio.startMic();
 PortAudio.startSpeaker();
 
-const orig24k=loadLPCMFileSync("counting24k.lpcm");  // 元のデータ。これが再生用データ
+const orig=loadLPCMFileSync("counting48k.lpcm");  // 元のデータ。これが再生用データ
 
 let g_playOfs=0;
 
@@ -39,7 +39,7 @@ let g_cnt=0;
 
 const g_refinedRec=[];
 
-const chunkNum=Math.ceil(orig24k.length/paUnit);
+const chunkNum=Math.ceil(orig.length/paUnit);
 
 setInterval(()=>{
   const st=new Date().getTime();
@@ -57,7 +57,7 @@ setInterval(()=>{
     // refined用の信号をそのまま再生する。
     const toPlay=new Int16Array(paUnit);
     for(let i=0;i<paUnit;i++) {
-      const sample=orig24k[g_playOfs]||0;
+      const sample=orig[g_playOfs]||0;
       g_playOfs++;
       toPlay[i]=sample;
     }
