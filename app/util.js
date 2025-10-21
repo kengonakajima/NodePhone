@@ -606,8 +606,8 @@ function loadLPCMFileSync(path,chunkSize) {
   const fileData = fs.readFileSync(path);
   if(!chunkSize) {
     return new Int16Array(fileData.buffer);
-  } else { 
-    const numSamples = fileData.length / 2; 
+  } else {
+    const numSamples = fileData.length / 2;
     const numChunks = Math.ceil(numSamples / chunkSize);
     const out=[];
     for (let i = 0; i < numChunks; i++) {
@@ -619,6 +619,63 @@ function loadLPCMFileSync(path,chunkSize) {
     }
     return out;
   }
+}
+
+function loadWAVFileSync(path,chunkSize) {
+  const fileData = fs.readFileSync(path);
+  if(fileData.length<12) throw "wav_header_short";
+  if(fileData.toString('ascii',0,4)!=='RIFF') throw "wav_header_no_riff";
+  if(fileData.toString('ascii',8,12)!=='WAVE') throw "wav_header_no_wave";
+
+  let fmtChunk=null;
+  const dataChunks=[];
+  let offset=12;
+  while(offset+8<=fileData.length) {
+    const chunkId=fileData.toString('ascii',offset,offset+4);
+    const chunkLength=fileData.readUInt32LE(offset+4);
+    offset+=8;
+    const chunkEnd=offset+chunkLength;
+    if(chunkEnd>fileData.length) throw "wav_chunk_truncated";
+    if(chunkId==='fmt ') {
+      const fmtBuffer=fileData.slice(offset,chunkEnd);
+      if(fmtBuffer.length<16) throw "wav_fmt_short";
+      fmtChunk={
+        audioFormat: fmtBuffer.readUInt16LE(0),
+        numChannels: fmtBuffer.readUInt16LE(2),
+        sampleRate: fmtBuffer.readUInt32LE(4),
+        byteRate: fmtBuffer.readUInt32LE(8),
+        blockAlign: fmtBuffer.readUInt16LE(12),
+        bitsPerSample: fmtBuffer.readUInt16LE(14)
+      };
+    } else if(chunkId==='data') {
+      dataChunks.push(fileData.slice(offset,chunkEnd));
+    }
+    offset=chunkEnd;
+    if(chunkLength%2===1) offset+=1;
+  }
+
+  if(!fmtChunk) throw "wav_missing_fmt";
+  if(fmtChunk.audioFormat!==1) throw "wav_unsupported_format";
+  if(fmtChunk.bitsPerSample!==16) throw "wav_bits_per_sample";
+  if(dataChunks.length===0) throw "wav_missing_data";
+
+  const totalBytes=dataChunks.reduce((sum,buf)=>sum+buf.length,0);
+  if(totalBytes%2===1) throw "wav_data_misaligned";
+  const combined=Buffer.concat(dataChunks,totalBytes);
+  const sampleCount=combined.length/2;
+  const pcm=new Int16Array(sampleCount);
+  for(let i=0;i<sampleCount;i++) {
+    pcm[i]=combined.readInt16LE(i*2);
+  }
+
+  if(!chunkSize) return pcm;
+
+  const out=[];
+  for(let start=0;start<sampleCount;start+=chunkSize) {
+    const end=Math.min(start+chunkSize,sampleCount);
+    out.push(pcm.subarray(start,end));
+  }
+  return out;
 }
 
 
@@ -833,6 +890,7 @@ exports.expComplex=expComplex;
 exports.conjugate=conjugate;
 exports.plotArrayToImage=plotArrayToImage;
 exports.loadLPCMFileSync=loadLPCMFileSync;
+exports.loadWAVFileSync=loadWAVFileSync;
 exports.firFilter=firFilter;
 exports.firFilterFFT=firFilterFFT;
 exports.findMax=findMax;
