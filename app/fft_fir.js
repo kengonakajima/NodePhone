@@ -12,7 +12,7 @@ const {
   to_s_array,
   calcAveragePower,
   findMax,
-  save_f,
+  saveWAVFileSync,
   plotArrayToImage,
   fft_f,
   ifft_f,
@@ -69,13 +69,13 @@ const S = X.map((x, i) => {
 
 const s=ifft_f(S);
 
-save_f(to_fft_f,"fft_ifft_orig.wav",sampleRate);
+saveWAVFileSync("fft_ifft_orig.wav",to_s_array(to_fft_f),sampleRate);
 
-save_f(s,"fft_fir_out.wav",sampleRate);
+saveWAVFileSync("fft_fir_out.wav",to_s_array(s),sampleRate);
 
 console.log("orig:",to_fft_f);
 console.log("s:",s);
 
 const diff=new Float32Array(unit);
 for(let i=0;i<unit;i++) diff[i]=s[i]-to_fft_f[i];
-save_f(diff,"fir_filter_diff.wav",sampleRate);
+saveWAVFileSync("fir_filter_diff.wav",to_s_array(diff),sampleRate);

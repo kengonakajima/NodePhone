@@ -10,7 +10,7 @@ const {
   to_s_array,
   calcAveragePower,
   findMax,
-  save_f,
+  saveWAVFileSync,
   plotArrayToImage,
   fft_f,
   ifft_f
@@ -30,8 +30,8 @@ const to_fft_f=to_f_array(to_fft_i);
 const X=fft_f(to_fft_f);
 const x=ifft_f(X);
 
-save_f(x,"fft_ifft_rect.wav",sampleRate);
-save_f(to_fft_f,"fft_ifft_orig.wav",sampleRate);
+saveWAVFileSync("fft_ifft_rect.wav",to_s_array(x),sampleRate);
+saveWAVFileSync("fft_ifft_orig.wav",to_s_array(to_fft_f),sampleRate);
 console.log("x:",x);
 console.log("orig:",to_fft_f);
 

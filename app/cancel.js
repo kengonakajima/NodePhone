@@ -1,4 +1,4 @@
-const {PortAudio,loadLPCMFileSync} = require('./util.js');
+const {PortAudio,loadWAVFileSync} = require('./util.js');
 const freq=16000; //48000; // aec3の必要条件
 PortAudio.initSampleBuffers(freq,freq,256);
 PortAudio.startMic();
@@ -11,19 +11,17 @@ const {
 
 aec3Wrapper.setFrequency(freq);
 
-const wav=loadLPCMFileSync("counting48k.lpcm");
+const wav=loadWAVFileSync("counting48k.wav");
 const g_toAdd=[];
 // shiftできるArrayに変換する。 48K > 16K
 for(let i=0;i<wav.length;i+=3) {
   let sample=wav[i];
-  if(i%48000==0) sample=18000;
-  else if(i%48000==3) sample=-18000;  
   g_toAdd.push(sample); 
 }
 
 // 録音
-const g_recSamples=[]; // lpcm16。録音バッファ
-const g_refSamples=[]; // lpcm16 再生バッファ
+const g_recSamples=[]; // Int16の録音バッファ
+const g_refSamples=[]; // Int16の再生バッファ
 
 setInterval(()=>{
   let recMax=0, playMax=0;

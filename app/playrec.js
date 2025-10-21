@@ -8,7 +8,7 @@ const {
   PortAudio,
   getVolumeBar,
   getMaxValue,
-  loadLPCMFileSync,
+  loadWAVFileSync,
   fft_f,
   ifft_f ,
   spectrumBar,
@@ -16,11 +16,10 @@ const {
   calcAveragePower,
   calcPowerSpectrum,
   findMax,
-  writeBinaryToFile,
   to_f,
   to_s,
   applyHannWindow,
-  save_f,
+  saveWAVFileSync,
   plotArrayToImage,
   to_f_array
 } = require('./util.js');
@@ -30,7 +29,7 @@ PortAudio.initSampleBuffers(freq,freq,paUnit);
 PortAudio.startMic();
 PortAudio.startSpeaker();
 
-const orig=loadLPCMFileSync("counting48k.lpcm");  // 元のデータ。これが再生用データ
+const orig=loadWAVFileSync("counting48k.wav");  // 元のデータ。これが再生用データ
 
 let g_playOfs=0;
 
@@ -67,9 +66,8 @@ setInterval(()=>{
       // 音を保存して終了
       const hoge=new Int16Array(g_refinedRec.length);
       for(let i=0;i<g_refinedRec.length;i++) hoge[i]=g_refinedRec[i];
-      writeBinaryToFile("playRec.lpcm16",hoge);
+      saveWAVFileSync("playRec.wav",hoge,freq);
       process.exit(0);
     }
   }
 },20);
-

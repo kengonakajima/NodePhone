@@ -1,9 +1,9 @@
 const {
-  loadLPCMFileSync,
   loadWAVFileSync,
   getMaxValue,
-  save_f,
-  to_f
+  saveWAVFileSync,
+  to_f,
+  to_s_array
  
 } = require('./util.js');
 const freq=16000; // aec3の必要条件
@@ -19,15 +19,17 @@ console.log("aec3Wrapper:",aec3Wrapper);
 
 
 
-const sampleNum=48000;
+const sourceSampleRate=48000;
+const sampleNum=sourceSampleRate;
 const downSampleRate=4;
+const processedSampleRate=Math.floor(sourceSampleRate/downSampleRate);
 const downSampleNum=Math.floor(sampleNum/downSampleRate);
 
-//const played48k=loadLPCMFileSync("glassPlay48k.lpcm").slice(0,sampleNum);  // 元のデータ。これが再生用データ
-//const recorded48k=loadLPCMFileSync("glassRec48k.lpcm").slice(0,sampleNum);  // counting48k.lpcmをplayrec.jsで録音した48KHzのデータ
+//const played48k=loadWAVFileSync("glassPlay48k.wav").slice(0,sampleNum);  // 元のデータ。これが再生用データ
+//const recorded48k=loadWAVFileSync("glassRec48k.wav").slice(0,sampleNum);  // counting48k.wavをplayrec.jsで録音した48KHzのデータ
 
 const played48k=loadWAVFileSync("counting48k.wav").slice(0,sampleNum);  // 元のデータ。これが再生用データ. 48k samplesで「いち」
-const recorded48k=loadLPCMFileSync("playRecCounting48k.lpcm16").slice(0,sampleNum);  // counting48k.lpcmをplayrec.jsで録音した48KHzのデータ
+const recorded48k=loadWAVFileSync("playRecCounting48k.wav").slice(0,sampleNum);  // counting48k.wavをplayrec.jsで録音した48KHzのデータ
 
 
 // 48K>12K にdownsample
@@ -84,10 +86,9 @@ setInterval(function() {
                  );
     }
     console.log("done");
-    save_f(finalOut,"aec3static.lpcm16");
+    saveWAVFileSync("aec3static.wav",to_s_array(finalOut),processedSampleRate);
     process.exit(0);    
   } else {
     console.log("waiting for aec3 gets ready");
   }
   },100);
-

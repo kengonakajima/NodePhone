@@ -5,7 +5,6 @@
 const {
   loadWAVFileSync,
   getMaxValue,
-  save_f,
   to_f,
   plotArrayToImage
  
