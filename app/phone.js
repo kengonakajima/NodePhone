@@ -19,7 +19,7 @@ const {
 }=require("./util.js");
 
 
-let g_destHost="172.105.239.246"; // default test server ip
+let g_destHost="127.0.0.1"; // default test server ip
 let g_echoback=false;
 
 
