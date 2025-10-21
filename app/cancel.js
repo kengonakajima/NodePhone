@@ -1,6 +1,6 @@
-const {PortAudio} = require('./util.js');
-const freq=48000; // aec3の必要条件
-PortAudio.initSampleBuffers(freq,freq,512);
+const {PortAudio,loadLPCMFileSync} = require('./util.js');
+const freq=16000; //48000; // aec3の必要条件
+PortAudio.initSampleBuffers(freq,freq,256);
 PortAudio.startMic();
 PortAudio.startSpeaker();
 
@@ -10,6 +10,16 @@ const {
 }=require("./util.js");
 
 aec3Wrapper.setFrequency(freq);
+
+const wav=loadLPCMFileSync("counting48k.lpcm");
+const g_toAdd=[];
+// shiftできるArrayに変換する。 48K > 16K
+for(let i=0;i<wav.length;i+=3) {
+  let sample=wav[i];
+  if(i%48000==0) sample=18000;
+  else if(i%48000==3) sample=-18000;  
+  g_toAdd.push(sample); 
+}
 
 // 録音
 const g_recSamples=[]; // lpcm16。録音バッファ
@@ -51,7 +61,10 @@ setInterval(()=>{
       playMax=0;
       const play=new Int16Array(aec3Wrapper.samples_per_frame);
       for(let i=0;i<aec3Wrapper.samples_per_frame;i++) {
-        const sample=processed[i];
+        const echoback=true;
+        let sample=echoback?processed[i] : 0;
+        const addSample=g_toAdd.shift()||0;
+        sample+=addSample;
         g_refSamples.push(sample); // AEC処理された音を参照バッファに送る
         play[i]=sample;         // 同じ音を再生バッファに送る
         if(sample>playMax) playMax=sample;
@@ -62,11 +75,13 @@ setInterval(()=>{
   }
 
   // デバッグ表示
-  process.stdout.write('\033c');  
+//  process.stdout.write('\033c');  
   console.log("rec:",getVolumeBar(recMax));
   console.log("play:",getVolumeBar(playMax));
+  console.log("playMax:",playMax);
   console.log("recSamples:",g_recSamples.length);
   console.log("refSamples:",g_refSamples.length);  
-  console.log("Enhance:",getVolumeBar(enh*2000));
+  console.log("Enhance:",enh);
   console.log("VoiceProb:",aec3Wrapper.get_voice_probability());
-},50);
+  console.log("time:",new Date().getTime());
+},20);
