@@ -161,35 +161,31 @@ function to_s_array(f_ary) {
 }
 
 // aec3形式の、-32768~32768までのfloat値の配列をlpcmで保存する
-function save_fs(buf,path) {
-  const n = buf.length;
-  const sb = new Int16Array(n);
-
-  for (let i = 0; i < n; i++) {
-    sb[i] = Math.floor(buf[i]);
-  }
-  fs.writeFileSync(path, Buffer.from(sb.buffer));
+function clampInt16(value) {
+  if(value>32767) return 32767;
+  if(value<-32768) return -32768;
+  return value;
 }
-// -1~1のfloat値をlpcmで保存する。
-function save_f(buf, path) {
-  const n = buf.length;
-  const sb = new Int16Array(n);
 
-  for (let i = 0; i < n; i++) {
-    sb[i] = to_s(buf[i]);
+// aec3形式の、-32768~32767までの値の配列をWAVで保存する
+function save_fs(buf,path,sampleRate=16000) {
+  let data;
+  if(buf instanceof Int16Array) {
+    data=buf;
+  } else {
+    const n=buf.length;
+    data=new Int16Array(n);
+    for(let i=0;i<n;i++) data[i]=clampInt16(Math.floor(buf[i]));
   }
-
-  fs.writeFileSync(path, Buffer.from(sb.buffer));
+  saveWAVFileSync(path,data,sampleRate);
 }
-function append_f(buf,path) {
-  const n = buf.length;
-  const sb = new Int16Array(n);
 
-  for (let i = 0; i < n; i++) {
-    sb[i] = to_s(buf[i]);
-  }
-
-  appendBinaryToFile(path,sb);
+// -1~1のfloat値の配列をWAVで保存する
+function save_f(buf,path,sampleRate=16000) {
+  const n=buf.length;
+  const data=new Int16Array(n);
+  for(let i=0;i<n;i++) data[i]=clampInt16(to_s(buf[i]));
+  saveWAVFileSync(path,data,sampleRate);
 }
 
 function rm(path) {
@@ -602,25 +598,6 @@ function plotArrayToImage(data_list, width, height, outputFilename,scale=1) {
 }
 
 
-function loadLPCMFileSync(path,chunkSize) {
-  const fileData = fs.readFileSync(path);
-  if(!chunkSize) {
-    return new Int16Array(fileData.buffer);
-  } else {
-    const numSamples = fileData.length / 2;
-    const numChunks = Math.ceil(numSamples / chunkSize);
-    const out=[];
-    for (let i = 0; i < numChunks; i++) {
-      const start = i * chunkSize * 2;
-      const end = Math.min(start + chunkSize * 2, fileData.length);
-      const chunkData = fileData.slice(start, end);
-      const audioData = new Int16Array(chunkData.buffer, chunkData.byteOffset, chunkData.length / 2);
-      out.push(audioData);
-    }
-    return out;
-  }
-}
-
 function loadWAVFileSync(path,chunkSize) {
   const fileData = fs.readFileSync(path);
   if(fileData.length<12) throw "wav_header_short";
@@ -676,6 +653,47 @@ function loadWAVFileSync(path,chunkSize) {
     out.push(pcm.subarray(start,end));
   }
   return out;
+}
+
+function saveWAVFileSync(path,pcmData,sampleRate) {
+  if(!pcmData) throw "wav_no_pcm_data";
+  const sr=sampleRate||16000;
+  if(sr<=0) throw "wav_invalid_samplerate";
+
+  let dataArray;
+  if(pcmData instanceof Int16Array) {
+    dataArray=pcmData;
+  } else if(Array.isArray(pcmData) || ArrayBuffer.isView(pcmData)) {
+    dataArray=new Int16Array(pcmData);
+  } else {
+    throw "wav_invalid_pcm_type";
+  }
+
+  const numSamples=dataArray.length;
+  const bytesPerSample=Int16Array.BYTES_PER_ELEMENT;
+  const dataBytes=numSamples*bytesPerSample;
+  const headerSize=44;
+  const buffer=Buffer.alloc(headerSize+dataBytes);
+
+  buffer.write('RIFF',0);
+  buffer.writeUInt32LE(36+dataBytes,4);
+  buffer.write('WAVE',8);
+  buffer.write('fmt ',12);
+  buffer.writeUInt32LE(16,16);
+  buffer.writeUInt16LE(1,20); // PCM
+  buffer.writeUInt16LE(1,22); // mono
+  buffer.writeUInt32LE(sr,24);
+  buffer.writeUInt32LE(sr*bytesPerSample,28); // byteRate
+  buffer.writeUInt16LE(bytesPerSample,32); // blockAlign
+  buffer.writeUInt16LE(16,34); // bitsPerSample
+  buffer.write('data',36);
+  buffer.writeUInt32LE(dataBytes,40);
+
+  for(let i=0;i<numSamples;i++) {
+    buffer.writeInt16LE(dataArray[i],headerSize+i*bytesPerSample);
+  }
+
+  fs.writeFileSync(path,buffer);
 }
 
 
@@ -867,7 +885,6 @@ exports.to_f_array=to_f_array;
 exports.to_s_array=to_s_array;
 exports.save_f=save_f;
 exports.save_fs=save_fs;
-exports.append_f=append_f;
 exports.rm=rm;
 exports.calcERLE = calcERLE;
 exports.calcAveragePower = calcAveragePower;
@@ -889,8 +906,8 @@ exports.addComplex=addComplex;
 exports.expComplex=expComplex;
 exports.conjugate=conjugate;
 exports.plotArrayToImage=plotArrayToImage;
-exports.loadLPCMFileSync=loadLPCMFileSync;
 exports.loadWAVFileSync=loadWAVFileSync;
+exports.saveWAVFileSync=saveWAVFileSync;
 exports.firFilter=firFilter;
 exports.firFilterFFT=firFilterFFT;
 exports.findMax=findMax;

@@ -5,7 +5,7 @@
 */
 
 const {
-  loadLPCMFileSync,
+  loadWAVFileSync,
   firFilter,
   firFilterFFT,
   to_f_array,
@@ -20,7 +20,8 @@ const {
 }=require("./util.js");
 
 
-const chunk=loadLPCMFileSync("counting24k.lpcm");  // 元のデータ。これが再生用データ
+const sampleRate=24000;
+const chunk=loadWAVFileSync("counting24k.wav");  // 元のデータ。これが再生用データ
 
 const unit=2048;
 const start=47000; //「さん」の途中のところ
@@ -47,9 +48,13 @@ if(false) H[256]={re:2000, im:0}; // 3KHzのとこにピーク
 if(false) H[128]={re:2000, im:0}; // 1.5KHzのとこにピーク。　完全にサイン波になる。
 
 
-// このように2つのところに係数を入れると
-H[512]={re:1024, im:0}; //
-H[128]={re:1024, im:1000}; //
+// このように2つのところに係数を入れると、2つのsin波が混じった音になる
+if(true) {
+  H[512]={re:1024, im:0};
+  H[128]={re:1024, im:1000};
+}
+
+
 
 
 
@@ -64,13 +69,13 @@ const S = X.map((x, i) => {
 
 const s=ifft_f(S);
 
-save_f(to_fft_f,"fft_ifft_orig.lpcm");
+save_f(to_fft_f,"fft_ifft_orig.wav",sampleRate);
 
-save_f(s,"fft_fir_out.lpcm");
+save_f(s,"fft_fir_out.wav",sampleRate);
 
 console.log("orig:",to_fft_f);
 console.log("s:",s);
 
 const diff=new Float32Array(unit);
 for(let i=0;i<unit;i++) diff[i]=s[i]-to_fft_f[i];
-save_f(diff,"fir_filter_diff.lpcm");
+save_f(diff,"fir_filter_diff.wav",sampleRate);

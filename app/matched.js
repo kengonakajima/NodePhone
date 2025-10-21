@@ -3,7 +3,7 @@
   
   */
 const {
-  loadLPCMFileSync,
+  loadWAVFileSync,
   getMaxValue,
   save_f,
   to_f,
@@ -14,8 +14,8 @@ const {
 
 
 
-const played48k=loadLPCMFileSync("counting48k.lpcm");  // 元のデータ。これが再生用データ
-const recorded48k=loadLPCMFileSync("playRecCounting48k.lpcm16");  // counting48k.lpcmをplayrec.jsで録音した48KHzのデータ
+const played48k=loadWAVFileSync("counting48k.wav");  // 元のデータ。これが再生用データ
+const recorded48k=loadWAVFileSync("playRecCounting48k.wav");  // counting48k.wavをplayrec.jsで録音した48KHzのデータ
 
 // ダウンサンプリングする
 const downSamplingFactor=8;
@@ -69,4 +69,3 @@ console.log("maxIndex:",maxIndex,maxSum);
 plotArrayToImage([output],1024,512,"plots/matched_output.png",0.1);
 plotArrayToImage([played],1024,512,"plots/matched_played.png",1);
 plotArrayToImage([recorded],1024,512,"plots/matched_recorded.png",1);
-
