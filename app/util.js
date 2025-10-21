@@ -82,7 +82,7 @@ if(process.platform=='darwin') {
 } else if(process.platform=='win32') {
   opusPath='./opuswin.node';
 } else {
-  console.log("TODO: not implemented yet");
+  console.log("not implemented yet");
   process.exit(1);
 }
 
@@ -170,6 +170,7 @@ function save_fs(buf,path) {
   }
   fs.writeFileSync(path, Buffer.from(sb.buffer));
 }
+// -1~1のfloat値をlpcmで保存する。
 function save_f(buf, path) {
   const n = buf.length;
   const sb = new Int16Array(n);
@@ -279,7 +280,35 @@ function fft(x) {
   return result;
 }
 
-// {re,im}
+// xは{re,im}の65要素の配列
+// 出力は128要素のサンプルデータ
+function ifft_65_to_128(x) {
+  /*
+    void CopyToPackedArray(std::array<float, kFftLength>* v) const {
+      (*v)[0] = re[0];        // DC成分の実部
+      (*v)[1] = re[kFftLengthBy2];  // ナイキスト周波数の実部
+
+      // 残りの63個の複素数を交互に格納
+      for (size_t k = 1, j = 2; k < kFftLengthBy2; ++k) {
+          (*v)[j++] = re[k];  // 実部
+          (*v)[j++] = im[k];  // 虚部
+      }
+  }
+  TODO: このC++関数をここに移植する
+  */
+  
+  if(x.length !== 65) throw new Error("ifft_65_to_128: input must have 65 elements");
+  
+  // 65要素を128要素の複素数配列に変換
+  // fromFftData関数を使用して共役対称性を持つ完全な周波数領域データを作成
+  const fullComplexArray = fromFftData(x);
+  
+  // IFFTを実行して時間領域データを取得
+  const timeData = ifft_f(fullComplexArray);
+  
+  return timeData;
+}
+// xは{re,im}の65要素の配列
 function ifft(x) {
   const n = x.length;
 
@@ -344,6 +373,11 @@ function paddedFft(x,x_old) {
     data[i]=x_old_[i];
     data[i+64]=x_[i];
   }
+  // const dump=[];
+  // for(let i=0;i<128;i++) dump[i]=data[i].re;
+  // console.log("paddedFft: dump:",dump.join(","));
+  
+  
   return toFftData(fft(data));
 }
 // x: float[64] 前半は0,後半はxを入れるが、ハニング窓[64]をかける。
@@ -356,6 +390,17 @@ function zeroPaddedHanningFft(x) {
     data[i+64].re=x[i] * kHanning64[i];
   }
   //console.log("data:",data.join(","),kHanning64);
+  return toFftData(fft(data));
+}
+// x: float[64] 前半は0,後半はxを入れる。窓関数はなし
+function zeroPaddedFft(x) {
+  if(!(x instanceof Float32Array)) throw "invalid_type_zeroPaddedFft";  
+  if(x.length!=64) throw "invalid_size_zeroPaddedFft";  
+  const data=createComplexArray(128);
+  for(let i=0;i<64;i++) {
+    data[i].re=0;
+    data[i+64].re=x[i];
+  }
   return toFftData(fft(data));
 }
 // X: C[N]
@@ -515,6 +560,7 @@ function plotArrayToImage(data_list, width, height, outputFilename,scale=1) {
     for(let i=0;i<data.length;i++) outData[i]=data[i]*scale;
     outDataList.push(outData);
   }
+  //console.log("plotArrayToImage: scale:",scale,"outdata:",outDataList.join(","));
 
   
   // 背景を白で塗りつぶす
@@ -802,8 +848,10 @@ exports.decimateFloat32Array=decimateFloat32Array;
 exports.drawSpectrogram=drawSpectrogram;
 exports.kHanning64=kHanning64
 exports.zeroPaddedHanningFft=zeroPaddedHanningFft;
+exports.zeroPaddedFft=zeroPaddedFft;
 exports.calcSpectrum=calcSpectrum;
 exports.fromFftData=fromFftData;
 exports.toFftData=toFftData;
 exports.sumOfSquares=sumOfSquares;
 exports.toIntArray=toIntArray;
+exports.ifft_65_to_128=ifft_65_to_128;
